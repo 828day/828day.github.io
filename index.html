@@ -1311,7 +1311,7 @@
         S.db = firebase.firestore();
         S.fbOK = true;
         $("fbDot").className = "dot ok";
-        startTasks(); loadJournals(); loadDaily();
+        startTasks(); loadJournals(); loadDaily(); loadNews();
         return true;
       } catch (e) {
         S.fbOK = false; $("fbDot").className = "dot err";
@@ -1417,12 +1417,30 @@ Return ONLY a JSON object with exactly these keys:
     function playSong(i) {
       const s = S.daily.songs[i];
       const q = encodeURIComponent(`${s.title} ${s.artist} official audio`);
-      $("musicFrame").src = `https://www.youtube.com/embed?listType=search&list=${q}&autoplay=1`;
-      $("nowPlaying").textContent = `Now playing search results for: ${s.title} — ${s.artist}`;
+      // YouTube disabled search embeds — open YouTube search in a new tab instead
+      $('musicFrame').src = '';
+      $('nowPlaying').innerHTML = `🎵 <b>${esc(s.title)}</b> — ${esc(s.artist)} &nbsp;<a href="https://www.youtube.com/results?search_query=${q}" target="_blank" rel="noopener" style="color:var(--coral);font-weight:600">Open on YouTube ↗</a>`;
       $("songList").querySelectorAll(".song").forEach((el, j) => el.classList.toggle("playing", j === i));
     }
 
     /* ---------------- news & events ---------------- */
+    function renderNews(j) {
+      const dedup = arr => { const seen = new Set(); return (arr || []).filter(n => { const k = (n.headline || n.name || "").toLowerCase().trim(); return k && !seen.has(k) && seen.add(k); }); };
+      const item = n => `<div class="news-item"><h4><a href="${esc(n.url || "#")}" target="_blank" rel="noopener">${esc(n.headline || n.name)}</a></h4><div class="src">${esc(n.source || [n.when, n.where].filter(Boolean).join(" · "))}</div></div>`;
+      $("localNews").innerHTML = dedup(j.local).map(item).join("") || '<p class="empty">None found.</p>';
+      $("nationalNews").innerHTML = dedup(j.national).map(item).join("") || '<p class="empty">None found.</p>';
+      $("localEvents").innerHTML = dedup(j.events).map(item).join("") || '<p class="empty">None found.</p>';
+    }
+    async function loadNews() {
+      if (!S.fbOK) return;
+      const doc = await S.db.collection("news").doc(todayKey()).get();
+      if (doc.exists) {
+        const d = doc.data();
+        renderNews(d);
+        const t = d.updatedAt ? new Date(d.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "today";
+        $("newsStatus").textContent = "Loaded from cache — " + t;
+      }
+    }
     $("btnNews").addEventListener("click", fetchNews);
     async function fetchNews() {
       const btn = $("btnNews"); btn.disabled = true;
@@ -1437,12 +1455,10 @@ Use real, current results with working URLs. No commentary, JSON only.`;
         let out = await openai([{ role: "user", content: prompt }], { model: S.settings.newsModel });
         out = out.replace(/```json|```/g, "").trim();
         const j = JSON.parse(out.slice(out.indexOf("{"), out.lastIndexOf("}") + 1));
-        const dedup = arr => { const seen = new Set(); return (arr||[]).filter(n => { const k=(n.headline||n.name||"").toLowerCase().trim(); return k && !seen.has(k) && seen.add(k); }); };
-        const item = n => `<div class="news-item"><h4><a href="${esc(n.url || "#")}" target="_blank" rel="noopener">${esc(n.headline || n.name)}</a></h4><div class="src">${esc(n.source || [n.when, n.where].filter(Boolean).join(" · "))}</div></div>`;
-        $("localNews").innerHTML = dedup(j.local).map(item).join("") || '<p class="empty">None found.</p>';
-        $("nationalNews").innerHTML = dedup(j.national).map(item).join("") || '<p class="empty">None found.</p>';
-        $("localEvents").innerHTML = dedup(j.events).map(item).join("") || '<p class="empty">None found.</p>';
-        $("newsStatus").textContent = "Updated " + new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+        const updatedAt = new Date().toISOString();
+        if (S.fbOK) await S.db.collection("news").doc(todayKey()).set({ ...j, updatedAt });
+        renderNews(j);
+        $("newsStatus").textContent = "Updated " + new Date(updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
       } catch (e) { $("newsStatus").textContent = "✗ " + e.message; }
       btn.disabled = false;
     }
@@ -1458,15 +1474,46 @@ Use real, current results with working URLs. No commentary, JSON only.`;
     $("btnJoke").addEventListener("click", fetchJoke);
     fetchJoke();
 
-    const ytSearch = q => "https://www.youtube.com/embed?listType=search&list=" + encodeURIComponent(q);
+    const ytEmbed = id => `https://www.youtube.com/embed/${id}?rel=0`;
     (function dailyEmbeds() {
       const d = dayOfYear();
-      const funny = ["clean comedy sketch", "funny animals compilation", "dry bar comedy clip", "kids say funny things", "funny golden retriever", "office humor sketch", "blooper reel clean"];
-      $("funnyFrame").src = ytSearch(funny[d % funny.length] + " " + new Date().getFullYear());
-      const y = new Date().getFullYear();
-      $("trRom").src = ytSearch(`official romantic comedy movie trailer ${y}`);
-      $("trAct").src = ytSearch(`official action movie trailer ${y}`);
-      $("trDra").src = ytSearch(`official drama movie trailer ${y}`);
+      // Clean comedy — rotate daily (add more IDs to extend the rotation)
+      const funny = [
+        "EJSbFKA-AAI", // Tim Hawkins – Things You Don't Say to Your Wife
+        "i8IqVCqFCGY", // Brian Regan – Letterman
+        "pBNd0XDRkOA", // Jeff Foxworthy – You Might Be a Redneck
+        "5HbYScltf1c", // Jim Gaffigan – Hot Pockets
+        "MKaFaAyHZWE", // Sebastian Maniscalco – Fortnite
+        "ABwuY-J-2MI", // Michael Jr. – Funny is the Key
+        "szBKmDDkiAQ"  // Tim Hawkins – The Government Can
+      ];
+      $("funnyFrame").src = ytEmbed(funny[d % funny.length]);
+      // Movie trailers — rotate weekly (every 7 days pick a different one)
+      const w = Math.floor(d / 7);
+      const romTrailers = [
+        "GMbHMuWi-Do", // Crazy Rich Asians
+        "eBF-fVzP0OA", // Anyone But You
+        "0Zb_l4gMFCE", // Ticket to Paradise
+        "FyMnlZuAAuw", // About Time
+        "yriS5B4FXKU"  // The Idea of You
+      ];
+      const actTrailers = [
+        "qSqVVswa420", // Top Gun: Maverick
+        "qEVUtrk8_B4", // John Wick 4
+        "avz-2fgRoFQ", // Mission: Impossible Dead Reckoning
+        "uYPbbksJxIg", // Oppenheimer
+        "Way9Dexny3w"  // Dune: Part Two
+      ];
+      const draTrailers = [
+        "AhKPSjBTVM8", // The Holdovers
+        "kA7-v9RVpB8", // Past Lives
+        "RlOYDCjP5TQ", // Poor Things
+        "FnJSrGSE1pA", // Tár
+        "_Z3QKkl1WyM"  // Black Panther: Wakanda Forever
+      ];
+      $("trRom").src = ytEmbed(romTrailers[w % romTrailers.length]);
+      $("trAct").src = ytEmbed(actTrailers[w % actTrailers.length]);
+      $("trDra").src = ytEmbed(draTrailers[w % draTrailers.length]);
     })();
 
     /* ---------------- tasks ---------------- */
