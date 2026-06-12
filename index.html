@@ -1606,7 +1606,7 @@ Use real, current results with working URLs. No commentary, JSON only.`;
 
     async function fetchAndSetAIVideo(searchQuery, iframeId) {
       try {
-        const prompt = `Search the web for a highly popular YouTube video matching: "${searchQuery}". Return ONLY a JSON object with a single key "url" containing the valid YouTube link.`;
+        const prompt = `Perform a web search to find a real, working YouTube video matching: "${searchQuery}". Find the actual video URL. Return ONLY a JSON object with a single key "url" containing the valid YouTube link. The video ID MUST be exactly 11 characters long.`;
         
         let out = await openai([{ role: "user", content: prompt }], { 
           model: S.settings.newsModel
