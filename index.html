@@ -1603,7 +1603,7 @@ Use real, current results with working URLs. No commentary, JSON only.`;
     /* ---------- YouTube helpers — exact celebratemomandben pattern ---------- */
     function getSafeEmbedUrl(rawUrl) {
       // Extracts the 11-character ID from any valid YouTube format
-      const match = rawUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
+      const match = rawUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|shorts\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
       const id = match ? match[1] : null;
       
       // Returns the strict, iframe-safe embed format
@@ -1613,7 +1613,12 @@ Use real, current results with working URLs. No commentary, JSON only.`;
     async function fetchAndSetAIVideo(searchQuery, iframeId, maxRetries = 5) {
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
-          const prompt = `Perform a web search to find a real, working YouTube video matching: "${searchQuery}". Find the actual video URL. Return ONLY a JSON object with a single key "url" containing the valid YouTube link. The video ID MUST be exactly 11 characters long.`;
+          const prompt = `Search the web to find a real, working YouTube video URL for: "${searchQuery}". 
+CRITICAL RULES:
+1. You MUST return ONLY a JSON object with a single key "url".
+2. The URL MUST be a valid youtube.com or youtu.be link.
+3. The YouTube video ID MUST be EXACTLY 11 characters long (e.g., v=dQw4w9WgXcQ).
+4. Do NOT hallucinate. Verify the ID is exactly 11 characters before returning.`;
           
           let out = await openai([{ role: "user", content: prompt }], { 
             model: S.settings.newsModel
@@ -1674,12 +1679,10 @@ Use real, current results with working URLs. No commentary, JSON only.`;
       const btn = $("btnAITrailers"); btn.disabled = true;
       $("trailerStatus").innerHTML = '<span class="spin"></span> Searching…';
       
-      // Fetch trailers in parallel
-      const [rom, act, dra] = await Promise.all([
-        fetchAndSetAIVideo("latest romantic comedy movie trailer official", "trRom"),
-        fetchAndSetAIVideo("latest action movie trailer official", "trAct"),
-        fetchAndSetAIVideo("latest drama movie trailer official", "trDra")
-      ]);
+      // Fetch trailers sequentially to prevent OpenAI search concurrency limits (429 errors)
+      const rom = await fetchAndSetAIVideo("latest romantic comedy movie trailer official", "trRom");
+      const act = await fetchAndSetAIVideo("latest action movie trailer official", "trAct");
+      const dra = await fetchAndSetAIVideo("latest drama movie trailer official", "trDra");
       
       const updates = {};
       if (rom) updates.trRom = rom;
