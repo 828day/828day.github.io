@@ -1249,10 +1249,14 @@
               <p class="empty">Generate today's content on the Today tab to build the mix.</p>
             </div>
           </div>
-          <div class="card">
+          <div class="card" style="display:flex; flex-direction:column;">
             <div class="kicker">Now playing</div>
-            <div id="musicPlayer"><div class="music-now"><span style="font-size:2.5rem">🎵</span><p class="song-artist" style="color:#9AA8C2;font-size:13px">Pick a song from the list.</p></div></div>
-            <p class="muted mt" id="nowPlaying"></p>
+            <div id="musicPlayer" style="flex:1; display:flex; flex-direction:column; justify-content:center;">
+              <div class="music-now" style="text-align:center; padding: 40px 0;">
+                <span style="font-size:3rem; filter:drop-shadow(0 0 10px rgba(56,189,248,0.5));">🎧</span>
+                <p class="song-artist" style="color:#9AA8C2;font-size:14px; margin-top:12px;">Select a track to start the stream.</p>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -1531,22 +1535,36 @@ Return ONLY a JSON object with exactly these keys:
         el.addEventListener("keydown", e => { if (e.key === "Enter") play(); });
       });
     }
-    function playSong(i) {
+    async function playSong(i) {
       const s = S.daily.songs[i];
-      const q = encodeURIComponent(`${s.title} ${s.artist} official audio`);
-      const ytUrl = `https://www.youtube.com/results?search_query=${q}`;
-      $("musicPlayer").innerHTML = `
-        <div class="music-now">
-          <span style="font-size:2.2rem">🎵</span>
-          <div class="song-title">${esc(s.title)}</div>
-          <div class="song-artist">${esc(s.artist)} &nbsp;·&nbsp; ${esc(s.genre)}</div>
-          <a class="yt-open-btn" href="${ytUrl}" target="_blank" rel="noopener">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z"/></svg>
-            Play on YouTube
-          </a>
-        </div>`;
-      $("nowPlaying").textContent = '';
       $("songList").querySelectorAll(".song").forEach((el, j) => el.classList.toggle("playing", j === i));
+      
+      const p = $("musicPlayer");
+      p.innerHTML = `
+        <div style="aspect-ratio: 16/9; background:#0f172a; border-radius:12px; overflow:hidden; margin-bottom:16px; position:relative; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.05);">
+          <iframe id="musicIframe" src="" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen style="width:100%; height:100%; border:0; z-index:1; position:relative;"></iframe>
+          <div id="musicLoading" style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; background:rgba(15,23,42,0.9); z-index:10; font-size:14px; color:#38bdf8; transition: opacity 0.3s ease;">
+            <div class="spin" style="width:30px; height:30px; border-width:3px; border-color: rgba(56,189,248,0.3); border-top-color:#38bdf8; margin-bottom:12px;"></div>
+            <span style="font-weight:600; letter-spacing:0.05em; text-transform:uppercase; font-size:11px;">AI Tuning Stream</span>
+          </div>
+        </div>
+        <div class="song-title" style="font-size:1.3rem; margin-bottom:4px; text-shadow: 0 0 10px rgba(255,255,255,0.1);">${esc(s.title)}</div>
+        <div class="song-artist" style="color:#9AA8C2;">${esc(s.artist)} &nbsp;<span style="color:#38bdf8">•</span>&nbsp; ${esc(s.genre)}</div>
+      `;
+      
+      // AI fetches the official audio dynamically
+      const ok = await fetchAndSetAIVideo(`${s.title} ${s.artist} official audio`, "musicIframe", 3);
+      
+      const loading = p.querySelector("#musicLoading");
+      if (loading) {
+        loading.style.opacity = "0";
+        setTimeout(() => loading.style.display = "none", 300);
+      }
+      
+      if (!ok) {
+        const ytUrl = "https://www.youtube.com/results?search_query=" + encodeURIComponent(s.title + ' ' + s.artist);
+        p.innerHTML += `<a href="${ytUrl}" target="_blank" class="btn ghost sm mt" style="width:100%">Search YouTube Manually</a>`;
+      }
     }
 
     /* ---------------- news & events ---------------- */
