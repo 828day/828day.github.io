@@ -1422,7 +1422,7 @@
         S.db = firebase.firestore();
         S.fbOK = true;
         $("fbDot").className = "dot ok";
-        startTasks(); loadJournals(); loadDaily(); loadNews();
+        startTasks(); loadJournals(); loadDaily(); loadNews(); loadVideos();
         return true;
       } catch (e) {
         S.fbOK = false; $("fbDot").className = "dot err";
@@ -1485,6 +1485,12 @@ Return ONLY a JSON object with exactly these keys:
         if (S.fbOK) await S.db.collection("daily").doc(todayKey()).set(S.daily);
         renderDaily();
         $("dailyStatus").textContent = "Fresh content generated ✓";
+        
+        // Auto-fetch all other sections
+        $("btnNews").click();
+        $("btnJoke").click();
+        $("btnAIFun").click();
+        $("btnAITrailers").click();
       } catch (e) { $("dailyStatus").textContent = "✗ " + e.message; }
       btn.disabled = false;
     }
@@ -1604,35 +1610,63 @@ Use real, current results with working URLs. No commentary, JSON only.`;
       return id ? `https://www.youtube-nocookie.com/embed/${id}?rel=0` : null;
     }
 
-    async function fetchAndSetAIVideo(searchQuery, iframeId) {
-      try {
-        const prompt = `Perform a web search to find a real, working YouTube video matching: "${searchQuery}". Find the actual video URL. Return ONLY a JSON object with a single key "url" containing the valid YouTube link. The video ID MUST be exactly 11 characters long.`;
-        
-        let out = await openai([{ role: "user", content: prompt }], { 
-          model: S.settings.newsModel
-        });
-        out = out.replace(/```json|```/g, "").trim();
-        const data = JSON.parse(out.slice(out.indexOf("{"), out.lastIndexOf("}") + 1));
-        const safeSrc = getSafeEmbedUrl(data.url);
-        
-        if (safeSrc) {
-          $(iframeId).src = safeSrc;
-          return true;
-        } else {
-          console.warn(`AI returned an unparseable URL for "${searchQuery}":`, data.url);
-          return false;
+    async function fetchAndSetAIVideo(searchQuery, iframeId, maxRetries = 5) {
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          const prompt = `Perform a web search to find a real, working YouTube video matching: "${searchQuery}". Find the actual video URL. Return ONLY a JSON object with a single key "url" containing the valid YouTube link. The video ID MUST be exactly 11 characters long.`;
+          
+          let out = await openai([{ role: "user", content: prompt }], { 
+            model: S.settings.newsModel
+          });
+          out = out.replace(/```json|```/g, "").trim();
+          const data = JSON.parse(out.slice(out.indexOf("{"), out.lastIndexOf("}") + 1));
+          const safeSrc = getSafeEmbedUrl(data.url);
+          
+          if (safeSrc) {
+            $(iframeId).src = safeSrc;
+            return safeSrc;
+          } else {
+            console.warn(`Attempt ${attempt}/${maxRetries}: AI returned an unparseable URL for "${searchQuery}":`, data.url);
+          }
+        } catch (err) {
+          console.error(`Attempt ${attempt}/${maxRetries}: Failed to fetch AI video for "${searchQuery}":`, err.message);
         }
-      } catch (err) {
-        console.error(`Failed to fetch AI video for "${searchQuery}":`, err.message);
-        return false;
+      }
+      console.error(`Failed to fetch AI video for "${searchQuery}" after ${maxRetries} attempts.`);
+      return false;
+    }
+
+    async function saveVideosToFirebase(updates) {
+      if (!S.fbOK) return;
+      await S.db.collection("videos").doc(todayKey()).set({ ...updates, updatedAt: new Date().toISOString() }, { merge: true });
+    }
+
+    async function loadVideos() {
+      if (!S.fbOK) return;
+      const doc = await S.db.collection("videos").doc(todayKey()).get();
+      if (doc.exists) {
+        const v = doc.data();
+        if (v.funny) $("funnyFrame").src = v.funny;
+        if (v.trRom) $("trRom").src = v.trRom;
+        if (v.trAct) $("trAct").src = v.trAct;
+        if (v.trDra) $("trDra").src = v.trDra;
+        
+        const t = v.updatedAt ? new Date(v.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "today";
+        if (v.funny) $("funStatus").textContent = "Loaded from cache — " + t;
+        if (v.trRom) $("trailerStatus").textContent = "Loaded from cache — " + t;
       }
     }
 
     $("btnAIFun").addEventListener("click", async () => {
       const btn = $("btnAIFun"); btn.disabled = true;
       $("funStatus").innerHTML = '<span class="spin"></span> Searching…';
-      const ok = await fetchAndSetAIVideo("clean stand up comedy short clip", "funnyFrame");
-      $("funStatus").textContent = ok ? "Updated ✓" : "Failed ✗";
+      const url = await fetchAndSetAIVideo("clean stand up comedy short clip", "funnyFrame");
+      if (url) {
+        await saveVideosToFirebase({ funny: url });
+        $("funStatus").textContent = "Updated ✓ " + new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+      } else {
+        $("funStatus").textContent = "Failed ✗";
+      }
       btn.disabled = false;
     });
 
@@ -1641,13 +1675,23 @@ Use real, current results with working URLs. No commentary, JSON only.`;
       $("trailerStatus").innerHTML = '<span class="spin"></span> Searching…';
       
       // Fetch trailers in parallel
-      await Promise.all([
+      const [rom, act, dra] = await Promise.all([
         fetchAndSetAIVideo("latest romantic comedy movie trailer official", "trRom"),
         fetchAndSetAIVideo("latest action movie trailer official", "trAct"),
         fetchAndSetAIVideo("latest drama movie trailer official", "trDra")
       ]);
       
-      $("trailerStatus").textContent = "Updated ✓";
+      const updates = {};
+      if (rom) updates.trRom = rom;
+      if (act) updates.trAct = act;
+      if (dra) updates.trDra = dra;
+      
+      if (Object.keys(updates).length > 0) {
+        await saveVideosToFirebase(updates);
+        $("trailerStatus").textContent = "Updated ✓ " + new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+      } else {
+        $("trailerStatus").textContent = "Failed ✗";
+      }
       btn.disabled = false;
     });
 
