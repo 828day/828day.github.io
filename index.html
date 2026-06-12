@@ -1608,12 +1608,11 @@ Use real, current results with working URLs. No commentary, JSON only.`;
       try {
         const prompt = `Search the web for a highly popular YouTube video matching: "${searchQuery}". Return ONLY a JSON object with a single key "url" containing the valid YouTube link.`;
         
-        const out = await openai([{ role: "user", content: prompt }], { 
-          model: S.settings.newsModel, 
-          json: true 
+        let out = await openai([{ role: "user", content: prompt }], { 
+          model: S.settings.newsModel
         });
-        
-        const data = JSON.parse(out);
+        out = out.replace(/```json|```/g, "").trim();
+        const data = JSON.parse(out.slice(out.indexOf("{"), out.lastIndexOf("}") + 1));
         const safeSrc = getSafeEmbedUrl(data.url);
         
         if (safeSrc) {
