@@ -408,7 +408,7 @@ hr.soft{border:0;border-top:1px solid var(--line);margin:16px 0}
    All configuration lives in the constants below. Fill them in, save,
    reload — that's the whole setup.
    ===================================================================== */
-const firebaseConfig = {
+const FIREBASE_CONFIG = {
   apiKey: "AIzaSyCE7LWow8RxILsvO89KWdizYmzfVWS5jZU",
   authDomain: "myapp-5acc3.firebaseapp.com",
   databaseURL: "https://myapp-5acc3.firebaseio.com",
@@ -421,8 +421,8 @@ const firebaseConfig = {
 /* Optional: hard-code your OpenAI key + location here so Settings is pre-filled.
    ⚠ Only do this if the file stays private (local disk / locked-down internal server).
    Anyone who can View Source on this page can read and use the key. */
-const OPENAI_KEY = "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";                 // e.g. "sk-proj-..."
-const DEFAULT_LOCATION = "Kimberling City, Mo";           // e.g. "Rockford, Illinois"
+const OPENAI_KEY = "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";           
+const DEFAULT_LOCATION = "Kimberling City, Mo";          
 const OPENAI_MODEL = "gpt-4o-mini";    // daily content: gpt-4o-mini | gpt-4o | gpt-4.1-mini
 const NEWS_MODEL = "gpt-4o-mini-search-preview"; // news: must be a -search-preview model
 
