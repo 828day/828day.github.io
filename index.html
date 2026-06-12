@@ -17,10 +17,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
-  <!-- lite-youtube-embed (Paul Irish) — thumbnail facade, loads iframe on click -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lite-youtube-embed@0.3.0/src/lite-yt-embed.css">
-  <script defer src="https://cdn.jsdelivr.net/npm/lite-youtube-embed@0.3.0/src/lite-yt-embed.js"></script>
-
   <style>
     :root {
       --mist: #F1F4F8;
@@ -916,11 +912,26 @@
     }
 
 
-    /* ---------- lite-youtube-embed overrides ---------- */
-    lite-youtube { border-radius: 12px; }
-    lite-youtube.tall { aspect-ratio: 16/10; }
-    .yt-watch { display:block; text-align:right; font-family:var(--mono); font-size:10.5px; color:var(--slate); text-decoration:none; margin-top:6px; letter-spacing:.06em; }
-    .yt-watch:hover { color:var(--coral); }
+    /* ---------- YouTube video player (matches celebratemomandben pattern) ---------- */
+    .video-player {
+      width: 100%;
+      aspect-ratio: 16/9;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #000;
+      position: relative;
+    }
+    .video-player.tall { aspect-ratio: 16/10; }
+    .video-player iframe {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border: none;
+      top: 0;
+      left: 0;
+      transform: translateZ(0);
+      -webkit-transform: translateZ(0);
+    }
     .music-now { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:180px; gap:14px; text-align:center; background:var(--night); border-radius:12px; padding:24px }
     .music-now .song-title { font-family:var(--display); font-size:20px; color:#fff; font-weight:600 }
     .music-now .song-artist { font-family:var(--mono); font-size:12px; color:#9AA8C2; letter-spacing:.1em }
@@ -1124,8 +1135,11 @@
           </div>
           <div class="card" style="grid-column:1/-1">
             <div class="kicker">Funny video of the day</div>
-            <div id="funnyFrame"></div>
-            <p class="muted mt">Rotates daily. Click thumbnail to play, or watch directly on YouTube.</p>
+            <div class="video-player">
+              <iframe id="funnyFrame" src="" allowfullscreen
+                referrerpolicy="strict-origin-when-cross-origin"></iframe>
+            </div>
+            <p class="muted mt">Rotates daily through clean comedy on YouTube.</p>
           </div>
         </div>
       </section>
@@ -1137,15 +1151,24 @@
         <div class="grid g3" id="trailerGrid">
           <div class="card coral">
             <div class="kicker">Romantic comedy</div>
-            <div id="trRom"></div>
+            <div class="video-player">
+              <iframe id="trRom" src="" allowfullscreen
+                referrerpolicy="strict-origin-when-cross-origin"></iframe>
+            </div>
           </div>
           <div class="card accent">
             <div class="kicker">Action</div>
-            <div id="trAct"></div>
+            <div class="video-player">
+              <iframe id="trAct" src="" allowfullscreen
+                referrerpolicy="strict-origin-when-cross-origin"></iframe>
+            </div>
           </div>
           <div class="card">
             <div class="kicker">Drama</div>
-            <div id="trDra"></div>
+            <div class="video-player">
+              <iframe id="trDra" src="" allowfullscreen
+                referrerpolicy="strict-origin-when-cross-origin"></iframe>
+            </div>
           </div>
         </div>
       </section>
@@ -1492,21 +1515,11 @@ Use real, current results with working URLs. No commentary, JSON only.`;
     $("btnJoke").addEventListener("click", fetchJoke);
     fetchJoke();
 
-    /* ---------- lite-youtube-embed helpers ---------- */
-    function ytCard(id, videoId, tall = false, title = '') {
-      const el = $(id); if (!el) return;
-      const origin = encodeURIComponent(window.location.origin);
-      const url = `https://www.youtube.com/watch?v=${videoId}`;
-      el.innerHTML =
-        `<lite-youtube videoid="${videoId}" params="rel=0&origin=${origin}"${tall ? ' class="tall"' : ''}${title ? ` videotitle="${title}"` : ''} nocookie></lite-youtube>` +
-        `<a class="yt-watch" href="${url}" target="_blank" rel="noopener">Watch on YouTube ↗</a>`;
-    }
-
-    // youtube-nocookie.com = privacy-enhanced mode, more permissive embedding
-    const ytEmbed = id => `https://www.youtube-nocookie.com/embed/${id}?rel=0&origin=${encodeURIComponent(window.location.origin)}`;
+    /* ---------- YouTube helpers — exact celebratemomandben pattern ---------- */
+    const ytSrc = id => `https://www.youtube-nocookie.com/embed/${id}?rel=0&origin=${window.location.origin}`;
     (function dailyEmbeds() {
       const d = dayOfYear();
-      // Clean comedy — rotate daily (add more IDs to extend the rotation)
+      // Clean comedy — rotate daily
       const funny = [
         "EJSbFKA-AAI", // Tim Hawkins – Things You Don't Say to Your Wife
         "i8IqVCqFCGY", // Brian Regan – Letterman
@@ -1516,8 +1529,8 @@ Use real, current results with working URLs. No commentary, JSON only.`;
         "ABwuY-J-2MI", // Michael Jr. – Funny is the Key
         "szBKmDDkiAQ"  // Tim Hawkins – The Government Can
       ];
-      ytCard('funnyFrame', funny[d % funny.length]);
-      // Movie trailers — rotate weekly (every 7 days pick a different one)
+      $("funnyFrame").src = ytSrc(funny[d % funny.length]);
+      // Movie trailers — rotate weekly
       const w = Math.floor(d / 7);
       const romTrailers = [
         "GMbHMuWi-Do", // Crazy Rich Asians
@@ -1540,9 +1553,9 @@ Use real, current results with working URLs. No commentary, JSON only.`;
         "FnJSrGSE1pA", // Tár
         "_Z3QKkl1WyM"  // Black Panther: Wakanda Forever
       ];
-      ytCard('trRom', romTrailers[w % romTrailers.length], true);
-      ytCard('trAct', actTrailers[w % actTrailers.length], true);
-      ytCard('trDra', draTrailers[w % draTrailers.length], true);
+      $("trRom").src = ytSrc(romTrailers[w % romTrailers.length]);
+      $("trAct").src = ytSrc(actTrailers[w % actTrailers.length]);
+      $("trDra").src = ytSrc(draTrailers[w % draTrailers.length]);
     })();
 
     /* ---------------- tasks ---------------- */
