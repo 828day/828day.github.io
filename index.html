@@ -1136,7 +1136,7 @@
           <div class="card" style="grid-column:1/-1">
             <div class="kicker">Funny video of the day</div>
             <div class="video-player">
-              <iframe id="funnyFrame" src="" allowfullscreen
+              <iframe id="funnyFrame" src="" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen
                 referrerpolicy="strict-origin-when-cross-origin"></iframe>
             </div>
             <p class="muted mt">Rotates daily through clean comedy on YouTube.</p>
@@ -1152,21 +1152,21 @@
           <div class="card coral">
             <div class="kicker">Romantic comedy</div>
             <div class="video-player">
-              <iframe id="trRom" src="" allowfullscreen
+              <iframe id="trRom" src="" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen
                 referrerpolicy="strict-origin-when-cross-origin"></iframe>
             </div>
           </div>
           <div class="card accent">
             <div class="kicker">Action</div>
             <div class="video-player">
-              <iframe id="trAct" src="" allowfullscreen
+              <iframe id="trAct" src="" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen
                 referrerpolicy="strict-origin-when-cross-origin"></iframe>
             </div>
           </div>
           <div class="card">
             <div class="kicker">Drama</div>
             <div class="video-player">
-              <iframe id="trDra" src="" allowfullscreen
+              <iframe id="trDra" src="" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen
                 referrerpolicy="strict-origin-when-cross-origin"></iframe>
             </div>
           </div>
@@ -1516,7 +1516,7 @@ Use real, current results with working URLs. No commentary, JSON only.`;
     fetchJoke();
 
     /* ---------- YouTube helpers — exact celebratemomandben pattern ---------- */
-    const ytSrc = id => `https://www.youtube-nocookie.com/embed/${id}?rel=0&origin=${window.location.origin}`;
+    const ytSrc = id => `https://www.youtube-nocookie.com/embed/${id}?rel=0`;
     (function dailyEmbeds() {
       const d = dayOfYear();
       // Clean comedy — rotate daily
