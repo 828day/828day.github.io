@@ -205,7 +205,6 @@ hr.soft{border:0;border-top:1px solid var(--line);margin:16px 0}
   <div class="nav-group">Reflect &amp; Build</div>
   <button class="nav-btn" data-view="journal"><span class="ic">📓</span>Journal</button>
   <button class="nav-btn" data-view="dev"><span class="ic">⌨️</span>Dev Studio</button>
-  <button class="nav-btn" data-view="settings"><span class="ic">⚙️</span>Settings</button>
 
   <div class="rail-foot">
     <div><span class="dot" id="fbDot"></span>Firebase</div>
@@ -234,7 +233,7 @@ hr.soft{border:0;border-top:1px solid var(--line);margin:16px 0}
 
 <div id="setupBanner" class="banner warn" style="display:none">
   <span>⚙️</span>
-  <span><b>Almost ready.</b> Open <a href="#" data-goto="settings">Settings</a> to paste your Firebase config and OpenAI API key. Daybreak generates today's content once and saves it to Firestore so it costs one API call per day.</span>
+  <span><b>Almost ready.</b> Open <code style="font-family:var(--mono);font-size:12px">daybreak.html</code> in your editor and fill in the <b>FIREBASE_CONFIG</b>, <b>OPENAI_KEY</b>, and <b>DEFAULT_LOCATION</b> constants at the top of the &lt;script&gt; block, then reload this page.</span>
 </div>
 
 <!-- ===================== TODAY ===================== -->
@@ -401,68 +400,36 @@ hr.soft{border:0;border-top:1px solid var(--line);margin:16px 0}
   </div>
 </section>
 
-<!-- ===================== SETTINGS ===================== -->
-<section class="view" id="view-settings">
-  <h2 class="sec-title">Settings</h2>
-  <p class="sec-sub">Everything Daybreak needs to wake up.</p>
-
-  <div class="card accent mb">
-    <div class="kicker">1 · Firebase</div>
-    <p class="prose">Create a Firebase project, enable <b>Cloud Firestore</b>, then paste your web app config below as JSON and reload. It's stored in this file's <code style="font-family:var(--mono);font-size:12px">FIREBASE_CONFIG</code> constant — or paste here to test without editing the file.</p>
-    <label class="f" for="fbConfig">Firebase config (paste straight from the Firebase console — JS or JSON both work)</label>
-    <textarea id="fbConfig" style="font-family:var(--mono);font-size:12.5px" placeholder='const firebaseConfig = {
-  apiKey: "AIza…",
-  authDomain: "yourapp.firebaseapp.com",
-  projectId: "yourapp",
-  ...
-};'></textarea>
-    <div class="row mt"><button class="btn" id="fbApply">Connect Firebase</button><span class="muted" id="fbStatus"></span></div>
-  </div>
-
-  <div class="card mb">
-    <div class="kicker">2 · OpenAI</div>
-    <label class="f" for="aiKey">API key</label>
-    <input type="password" id="aiKey" placeholder="sk-…">
-    <label class="f" for="aiModel">Model for daily content</label>
-    <select id="aiModel">
-      <option value="gpt-4o-mini">gpt-4o-mini (fast & cheap)</option>
-      <option value="gpt-4o">gpt-4o</option>
-      <option value="gpt-4.1-mini">gpt-4.1-mini</option>
-    </select>
-    <label class="f" for="aiNewsModel">Model for news (must support web search)</label>
-    <select id="aiNewsModel">
-      <option value="gpt-4o-mini-search-preview">gpt-4o-mini-search-preview</option>
-      <option value="gpt-4o-search-preview">gpt-4o-search-preview</option>
-    </select>
-    <p class="muted mt">⚠ Your key is saved to <b>your own</b> Firestore (settings/main) and sent only to api.openai.com from your browser. For a personal app this is fine; don't host this page publicly without locking down Firestore rules.</p>
-  </div>
-
-  <div class="card sage mb">
-    <div class="kicker">3 · Your area</div>
-    <label class="f" for="locInput">City &amp; state for news and events</label>
-    <input type="text" id="locInput" placeholder="e.g., Rockford, Illinois">
-  </div>
-
-  <div class="row"><button class="btn sun" id="saveSettings">Save settings</button><span class="muted" id="setStatus"></span></div>
-</section>
-
 </main>
 </div>
 <script>
 /* =====================================================================
    DAYBREAK — single-file daily command center
-   1) Paste your Firebase web config into FIREBASE_CONFIG below.
-   2) Open Settings in the app to add your OpenAI key and location.
+   All configuration lives in the constants below. Fill them in, save,
+   reload — that's the whole setup.
    ===================================================================== */
-const FIREBASE_CONFIG = {
-  /* apiKey:"...", authDomain:"...", projectId:"...",
-     storageBucket:"...", messagingSenderId:"...", appId:"..." */
+const firebaseConfig = {
+  apiKey: "AIzaSyCE7LWow8RxILsvO89KWdizYmzfVWS5jZU",
+  authDomain: "myapp-5acc3.firebaseapp.com",
+  databaseURL: "https://myapp-5acc3.firebaseio.com",
+  projectId: "myapp-5acc3",
+  storageBucket: "myapp-5acc3.firebasestorage.app",
+  messagingSenderId: "903180039566",
+  appId: "1:903180039566:web:a8ea1cc7c59947f53120df"
 };
+
+/* Optional: hard-code your OpenAI key + location here so Settings is pre-filled.
+   ⚠ Only do this if the file stays private (local disk / locked-down internal server).
+   Anyone who can View Source on this page can read and use the key. */
+const OPENAI_KEY = "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";                 // e.g. "sk-proj-..."
+const DEFAULT_LOCATION = "Kimberling City, Mo";           // e.g. "Rockford, Illinois"
+const OPENAI_MODEL = "gpt-4o-mini";    // daily content: gpt-4o-mini | gpt-4o | gpt-4.1-mini
+const NEWS_MODEL = "gpt-4o-mini-search-preview"; // news: must be a -search-preview model
 
 /* ---------------- state ---------------- */
 const S = {
   db:null, fbOK:false,
-  settings:{ openaiKey:"", model:"gpt-4o-mini", newsModel:"gpt-4o-mini-search-preview", location:"" },
+  settings:{ openaiKey:OPENAI_KEY, model:OPENAI_MODEL, newsModel:NEWS_MODEL, location:DEFAULT_LOCATION },
   daily:null, pyodide:null, currentLang:"html",
   code:{ html:"", js:"", py:"" }
 };
@@ -511,90 +478,28 @@ function initFirebase(cfg){
     S.db = firebase.firestore();
     S.fbOK = true;
     $("fbDot").className = "dot ok";
-    $("fbStatus").textContent = "Connected ✓";
-    loadSettings().then(() => { startTasks(); loadJournals(); loadDaily(); });
+    startTasks(); loadJournals(); loadDaily();
     return true;
   }catch(e){
     S.fbOK = false; $("fbDot").className = "dot err";
-    $("fbStatus").textContent = "Failed: " + e.message;
+    console.error("Firebase init failed:", e.message);
     return false;
   }
 }
 if (FIREBASE_CONFIG.projectId) initFirebase(FIREBASE_CONFIG);
 else { $("setupBanner").style.display = "flex"; $("fbDot").className = "dot warn"; }
 
-function parseFbConfig(raw){
-  let s = raw.trim();
-  // Strip "const firebaseConfig =" wrapper and trailing semicolon
-  s = s.replace(/^(const|var|let)\s+\w+\s*=\s*/,"").replace(/;\s*$/,"");
-  // Keep only the {...} block
-  const a = s.indexOf("{"), b = s.lastIndexOf("}");
-  if(a === -1 || b === -1) throw new Error("No { } object found");
-  s = s.slice(a, b+1);
-  try{ return JSON.parse(s); }catch(e){ /* fall through */ }
-  // Tolerant pass: comments, hidden/control chars, smart quotes, bare keys, trailing commas
-  let t = s.replace(/\/\/[^\n]*/g,"")
-           .replace(/\/\*[\s\S]*?\*\//g,"")
-           .replace(/[\u0000-\u001F\u007F\u200B-\u200D\uFEFF\u00A0]+/g," ")
-           .replace(/[\u201C\u201D]/g,'"').replace(/[\u2018\u2019]/g,"'")
-           .replace(/'/g,'"')
-           .replace(/([{,]\s*)([A-Za-z_$][\w$]*)\s*:/g, '$1"$2":')
-           .replace(/,\s*([}\]])/g, "$1")
-           // remove stray whitespace INSIDE quoted values (wrapped apiKeys etc.)
-           .replace(/"([^"]*)"/g, (m,v)=>'"'+v.replace(/\s+/g,"")+'"');
-  try{ return JSON.parse(t); }catch(e){ /* fall through */ }
-  // Last resort: extract known Firebase fields one by one
-  const cfg = {};
-  ["apiKey","authDomain","databaseURL","projectId","storageBucket","messagingSenderId","appId","measurementId"]
-    .forEach(k => {
-      const m = s.match(new RegExp(k + '["\']?\\s*:\\s*["\']([\\s\\S]*?)["\']'));
-      if(m) cfg[k] = m[1].replace(/\s+/g,"");
-    });
-  if(cfg.projectId && cfg.apiKey) return cfg;
-  throw new Error("couldn't recognize the config — re-copy it from Firebase console → Project settings → Your apps");
-}
-$("fbApply").addEventListener("click", () => {
-  try{
-    const cfg = parseFbConfig($("fbConfig").value);
-    if(!cfg.projectId) throw new Error("config has no projectId");
-    if(initFirebase(cfg)) $("setupBanner").style.display="none";
-  }
-  catch(e){ $("fbStatus").textContent = "Couldn't read config: " + e.message; }
-});
 
-/* ---------------- settings ---------------- */
-async function loadSettings(){
-  if(!S.fbOK) return;
-  try{
-    const doc = await S.db.collection("settings").doc("main").get();
-    if(doc.exists) Object.assign(S.settings, doc.data());
-    $("aiKey").value = S.settings.openaiKey || "";
-    $("aiModel").value = S.settings.model || "gpt-4o-mini";
-    $("aiNewsModel").value = S.settings.newsModel || "gpt-4o-mini-search-preview";
-    $("locInput").value = S.settings.location || "";
-    refreshAIStatus();
-  }catch(e){ console.warn("settings load", e); }
-}
+/* ---------------- settings (from constants at top of file) ---------------- */
 function refreshAIStatus(){
   $("aiDot").className = "dot " + (S.settings.openaiKey ? "ok" : "warn");
   $("locLabel").textContent = S.settings.location || "your area";
 }
-$("saveSettings").addEventListener("click", async () => {
-  S.settings.openaiKey = $("aiKey").value.trim();
-  S.settings.model = $("aiModel").value;
-  S.settings.newsModel = $("aiNewsModel").value;
-  S.settings.location = $("locInput").value.trim();
-  refreshAIStatus();
-  if(S.fbOK){
-    await S.db.collection("settings").doc("main").set(S.settings, {merge:true});
-    $("setStatus").textContent = "Saved to Firestore ✓";
-  } else $("setStatus").textContent = "Saved for this session (connect Firebase to persist)";
-  setTimeout(()=> $("setStatus").textContent="", 3500);
-});
+refreshAIStatus();
 
 /* ---------------- OpenAI helpers ---------------- */
 async function openai(messages, {model, json=false, tools=null} = {}){
-  if(!S.settings.openaiKey) throw new Error("Add your OpenAI key in Settings first.");
+  if(!S.settings.openaiKey) throw new Error("Add your key to OPENAI_KEY at the top of daybreak.html.");
   const body = { model: model || S.settings.model, messages };
   if(json) body.response_format = {type:"json_object"};
   const r = await fetch("https://api.openai.com/v1/chat/completions", {
