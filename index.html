@@ -1691,7 +1691,7 @@ CRITICAL RULES:
     $("btnAIFun").addEventListener("click", async () => {
       const btn = $("btnAIFun"); btn.disabled = true;
       $("funStatus").innerHTML = '<span class="spin"></span> Searching…';
-      const url = await fetchAndSetAIVideo("clean stand up comedy short clip", "funnyFrame");
+      const url = await fetchAndSetAIVideo("clean family friendly stand up comedy from Dry Bar Comedy or Jester", "funnyFrame");
       if (url) {
         await saveVideosToFirebase({ funny: url });
         $("funStatus").textContent = "Updated ✓ " + new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
