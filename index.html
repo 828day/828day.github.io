@@ -17,6 +17,10 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
+  <!-- lite-youtube-embed (Paul Irish) — thumbnail facade, loads iframe on click -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lite-youtube-embed@0.3.0/src/lite-yt-embed.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/lite-youtube-embed@0.3.0/src/lite-yt-embed.js"></script>
+
   <style>
     :root {
       --mist: #F1F4F8;
@@ -912,20 +916,11 @@
     }
 
 
-    /* ---------- Custom YouTube player ---------- */
-    .yt-wrap { position:relative; width:100%; border-radius:12px; overflow:hidden; background:#111; cursor:pointer; aspect-ratio:16/9 }
-    .yt-wrap.tall { aspect-ratio:16/10 }
-    .yt-thumb-img { width:100%; height:100%; object-fit:cover; display:block; transition:transform .35s }
-    .yt-wrap:hover .yt-thumb-img { transform:scale(1.04) }
-    .yt-overlay { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.32); transition:background .2s }
-    .yt-wrap:hover .yt-overlay { background:rgba(0,0,0,.52) }
-    .yt-play-btn { width:68px; height:48px; background:#FF0000; border-radius:12px; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 24px rgba(0,0,0,.5); transition:transform .15s,box-shadow .15s }
-    .yt-wrap:hover .yt-play-btn { transform:scale(1.14); box-shadow:0 8px 32px rgba(0,0,0,.6) }
-    .yt-play-btn svg { width:24px; height:24px; fill:#fff; margin-left:4px }
-    .yt-watch { position:absolute; bottom:9px; right:9px; background:rgba(0,0,0,.72); color:#fff; font-size:10.5px; padding:4px 9px; border-radius:7px; text-decoration:none; font-family:var(--mono); letter-spacing:.06em; backdrop-filter:blur(4px); transition:background .15s }
-    .yt-watch:hover { background:rgba(220,0,0,.88); color:#fff }
-    .yt-embed { width:100%; border:0; border-radius:12px; background:#000; aspect-ratio:16/9; display:block }
-    .yt-embed.tall { aspect-ratio:16/10 }
+    /* ---------- lite-youtube-embed overrides ---------- */
+    lite-youtube { border-radius: 12px; }
+    lite-youtube.tall { aspect-ratio: 16/10; }
+    .yt-watch { display:block; text-align:right; font-family:var(--mono); font-size:10.5px; color:var(--slate); text-decoration:none; margin-top:6px; letter-spacing:.06em; }
+    .yt-watch:hover { color:var(--coral); }
     .music-now { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:180px; gap:14px; text-align:center; background:var(--night); border-radius:12px; padding:24px }
     .music-now .song-title { font-family:var(--display); font-size:20px; color:#fff; font-weight:600 }
     .music-now .song-artist { font-family:var(--mono); font-size:12px; color:#9AA8C2; letter-spacing:.1em }
@@ -1497,22 +1492,13 @@ Use real, current results with working URLs. No commentary, JSON only.`;
     $("btnJoke").addEventListener("click", fetchJoke);
     fetchJoke();
 
-    /* ---------- custom YouTube card player ---------- */
-    function ytCard(id, videoId, tall = false) {
+    /* ---------- lite-youtube-embed helpers ---------- */
+    function ytCard(id, videoId, tall = false, title = '') {
       const el = $(id); if (!el) return;
-      const hi  = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
-      const lo  = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
       const url = `https://www.youtube.com/watch?v=${videoId}`;
-      el.innerHTML = `
-        <div class="yt-wrap${tall?' tall':''}" onclick="ytPlay('${id}','${videoId}',${tall})">
-          <img class="yt-thumb-img" src="${hi}" onerror="this.src='${lo}'" alt="thumbnail">
-          <div class="yt-overlay"><div class="yt-play-btn"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div></div>
-          <a class="yt-watch" href="${url}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Watch on YouTube ↗</a>
-        </div>`;
-    }
-    function ytPlay(id, videoId, tall) {
-      const el = $(id); if (!el) return;
-      el.innerHTML = `<iframe class="yt-embed${tall?' tall':''}" src="https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0" allow="autoplay;encrypted-media" allowfullscreen></iframe>`;
+      el.innerHTML =
+        `<lite-youtube videoid="${videoId}" params="rel=0"${tall ? ' class="tall"' : ''}${title ? ` videotitle="${title}"` : ''}></lite-youtube>` +
+        `<a class="yt-watch" href="${url}" target="_blank" rel="noopener">Watch on YouTube ↗</a>`;
     }
 
     const ytEmbed = id => `https://www.youtube.com/embed/${id}?rel=0`;
