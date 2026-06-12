@@ -1619,19 +1619,27 @@ Use real, current results with working URLs. No commentary, JSON only.`;
     fetchJoke();
 
     /* ---------- YouTube helpers — exact celebratemomandben pattern ---------- */
-    function getSafeEmbedUrl(rawUrl) {
-      // Extracts the 11-character ID from any valid YouTube format
-      const match = rawUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|shorts\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
-      const id = match ? match[1] : null;
-      
-      // Returns the strict, iframe-safe embed format
-      return id ? `https://www.youtube-nocookie.com/embed/${id}?rel=0` : null;
+    function getSafeEmbedUrl(rawUrl, platform = "youtube") {
+      if (platform === "imdb") {
+        const match = rawUrl.match(/imdb\.com\/video\/(?:imdb\/)?(vi\d+)/);
+        return match ? `https://www.imdb.com/video/imdb/${match[1]}/imdb/embed?autoplay=false` : null;
+      } else {
+        const match = rawUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|shorts\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
+        return match ? `https://www.youtube-nocookie.com/embed/${match[1]}?rel=0` : null;
+      }
     }
 
-    async function fetchAndSetAIVideo(searchQuery, iframeId, maxRetries = 5) {
+    async function fetchAndSetAIVideo(searchQuery, iframeId, maxRetries = 5, platform = "youtube") {
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
-          const prompt = `Search the web to find a real, working YouTube video URL for: "${searchQuery}". 
+          const prompt = platform === "imdb" 
+            ? `Search the web to find a real, working IMDb video URL for: "${searchQuery}".
+CRITICAL RULES:
+1. You MUST return ONLY a JSON object with a single key "url".
+2. The URL MUST be a valid imdb.com/video/ link.
+3. The video ID MUST start with "vi" followed by numbers (e.g., vi123456789).
+4. Do NOT hallucinate. Do NOT return youtube links.`
+            : `Search the web to find a real, working YouTube video URL for: "${searchQuery}". 
 CRITICAL RULES:
 1. You MUST return ONLY a JSON object with a single key "url".
 2. The URL MUST be a valid youtube.com or youtu.be link.
@@ -1643,7 +1651,7 @@ CRITICAL RULES:
           });
           out = out.replace(/```json|```/g, "").trim();
           const data = JSON.parse(out.slice(out.indexOf("{"), out.lastIndexOf("}") + 1));
-          const safeSrc = getSafeEmbedUrl(data.url);
+          const safeSrc = getSafeEmbedUrl(data.url, platform);
           
           if (safeSrc) {
             $(iframeId).src = safeSrc;
@@ -1698,9 +1706,9 @@ CRITICAL RULES:
       $("trailerStatus").innerHTML = '<span class="spin"></span> Searching…';
       
       // Fetch trailers sequentially to prevent OpenAI search concurrency limits (429 errors)
-      const rom = await fetchAndSetAIVideo("latest romantic comedy movie trailer official", "trRom");
-      const act = await fetchAndSetAIVideo("latest action movie trailer official", "trAct");
-      const dra = await fetchAndSetAIVideo("latest faith based movie trailer official", "trDra");
+      const rom = await fetchAndSetAIVideo("latest romantic comedy movie trailer official", "trRom", 5, "imdb");
+      const act = await fetchAndSetAIVideo("latest action movie trailer official", "trAct", 5, "imdb");
+      const dra = await fetchAndSetAIVideo("latest faith based movie trailer official", "trDra", 5, "imdb");
       
       const updates = {};
       if (rom) updates.trRom = rom;
