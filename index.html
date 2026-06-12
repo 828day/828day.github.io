@@ -1495,13 +1495,15 @@ Use real, current results with working URLs. No commentary, JSON only.`;
     /* ---------- lite-youtube-embed helpers ---------- */
     function ytCard(id, videoId, tall = false, title = '') {
       const el = $(id); if (!el) return;
+      const origin = encodeURIComponent(window.location.origin);
       const url = `https://www.youtube.com/watch?v=${videoId}`;
       el.innerHTML =
-        `<lite-youtube videoid="${videoId}" params="rel=0"${tall ? ' class="tall"' : ''}${title ? ` videotitle="${title}"` : ''}></lite-youtube>` +
+        `<lite-youtube videoid="${videoId}" params="rel=0&origin=${origin}"${tall ? ' class="tall"' : ''}${title ? ` videotitle="${title}"` : ''} nocookie></lite-youtube>` +
         `<a class="yt-watch" href="${url}" target="_blank" rel="noopener">Watch on YouTube ↗</a>`;
     }
 
-    const ytEmbed = id => `https://www.youtube.com/embed/${id}?rel=0`;
+    // youtube-nocookie.com = privacy-enhanced mode, more permissive embedding
+    const ytEmbed = id => `https://www.youtube-nocookie.com/embed/${id}?rel=0&origin=${encodeURIComponent(window.location.origin)}`;
     (function dailyEmbeds() {
       const d = dayOfYear();
       // Clean comedy — rotate daily (add more IDs to extend the rotation)
