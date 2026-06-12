@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daybreak — Your Daily Command Center</title>
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Albert+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<!-- Firebase (compat SDKs for a single-file app) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<style>
+:root{
+  --mist:#F1F4F8;          /* morning sky background */
+  --paper:#FFFFFF;
+  --ink:#16243A;           /* deep pre-dawn navy */
+  --ink-soft:#3D4D66;
+  --slate:#5F6F86;
+  --line:#DCE3EC;
+  --sun:#F2A03D;           /* sunrise amber */
+  --coral:#DE5B49;         /* horizon coral */
+  --sage:#5E8C7B;          /* morning field green */
+  --night:#0F1726;         /* dev panels */
+  --night-2:#172238;
+  --night-line:#26334D;
+  --mono:'JetBrains Mono',monospace;
+  --body:'Albert Sans',system-ui,sans-serif;
+  --display:'Fraunces',serif;
+  --r:14px;
+  --shadow:0 1px 2px rgba(22,36,58,.05),0 8px 24px -12px rgba(22,36,58,.12);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:var(--body);background:var(--mist);color:var(--ink);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+
+/* ---------- App shell ---------- */
+.app{display:grid;grid-template-columns:228px 1fr;min-height:100vh}
+.rail{position:sticky;top:0;height:100vh;background:var(--ink);color:#C8D3E4;display:flex;flex-direction:column;padding:22px 14px;gap:2px;overflow-y:auto}
+.brand{display:flex;align-items:center;gap:10px;padding:4px 10px 18px}
+.brand-sun{width:30px;height:30px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#FFD9A0,var(--sun) 60%,var(--coral));box-shadow:0 0 18px rgba(242,160,61,.55);flex:none}
+.brand h1{font-family:var(--display);font-weight:600;font-size:21px;color:#fff;letter-spacing:.2px}
+.brand small{display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:#7E8FAA;margin-top:1px}
+.nav-group{font-family:var(--mono);font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:#637191;padding:14px 10px 6px}
+.nav-btn{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:0;color:#C8D3E4;font:inherit;font-weight:500;font-size:13.5px;padding:8px 10px;border-radius:9px;cursor:pointer;transition:background .15s,color .15s}
+.nav-btn:hover{background:rgba(255,255,255,.07);color:#fff}
+.nav-btn.active{background:var(--sun);color:var(--ink);font-weight:600}
+.nav-btn .ic{width:17px;text-align:center;flex:none;opacity:.9}
+.rail-foot{margin-top:auto;padding:14px 10px 4px;font-family:var(--mono);font-size:10px;color:#637191;line-height:1.7}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;background:#5B6B82;vertical-align:1px}
+.dot.ok{background:#62C99A}.dot.warn{background:var(--sun)}.dot.err{background:var(--coral)}
+
+main{padding:26px 34px 64px;max-width:1180px;width:100%}
+
+/* ---------- Sun-arc header (signature) ---------- */
+.day-head{background:var(--paper);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:20px 26px 8px;margin-bottom:24px;position:relative;overflow:hidden}
+.day-head .greet{font-family:var(--display);font-size:30px;font-weight:600;letter-spacing:-.2px}
+.day-head .date-line{font-family:var(--mono);font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--slate);margin-top:3px}
+.arc-wrap{height:96px;margin-top:4px}
+.arc-wrap svg{width:100%;height:100%;display:block}
+.arc-path{fill:none;stroke:var(--line);stroke-width:2;stroke-dasharray:3 6}
+.arc-done{fill:none;stroke:var(--sun);stroke-width:2.5}
+.sun-dot{fill:var(--sun);filter:drop-shadow(0 0 6px rgba(242,160,61,.8))}
+.arc-label{font-family:var(--mono);font-size:9.5px;fill:var(--slate);letter-spacing:.12em}
+
+/* ---------- Sections / cards ---------- */
+.view{display:none}
+.view.active{display:block;animation:rise .35s ease}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.sec-title{font-family:var(--display);font-size:25px;font-weight:600;margin:6px 0 4px}
+.sec-sub{color:var(--slate);font-size:13.5px;margin-bottom:18px}
+.grid{display:grid;gap:18px}
+.g2{grid-template-columns:1fr 1fr}
+.g3{grid-template-columns:repeat(3,1fr)}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:20px 22px}
+.card.accent{border-top:3px solid var(--sun)}
+.card.coral{border-top:3px solid var(--coral)}
+.card.sage{border-top:3px solid var(--sage)}
+.kicker{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--slate);margin-bottom:9px;display:flex;align-items:center;gap:8px}
+.kicker::after{content:"";flex:1;height:1px;background:var(--line)}
+.verse-text{font-family:var(--display);font-size:21px;line-height:1.45;font-weight:400}
+.verse-ref{font-family:var(--mono);font-size:11.5px;color:var(--coral);margin-top:10px;letter-spacing:.08em}
+.prose{color:var(--ink-soft);font-size:14.5px}
+.prose p+p{margin-top:9px}
+.big-word{font-family:var(--display);font-size:26px;font-weight:600}
+.muted{color:var(--slate);font-size:13px}
+.pill{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;background:var(--mist);border:1px solid var(--line);border-radius:999px;padding:3px 10px;color:var(--ink-soft)}
+.pill.genre-Christian{border-color:#C9DAD2;background:#EDF5F1;color:#3E6B5B}
+.pill.genre-Country{border-color:#EAD9BC;background:#FBF3E4;color:#8A6420}
+.pill.genre-Yacht{border-color:#C9D6EA;background:#EBF1FA;color:#3D5C8C}
+
+/* ---------- Controls ---------- */
+.btn{font:inherit;font-weight:600;font-size:13.5px;border:0;border-radius:10px;padding:9px 16px;cursor:pointer;background:var(--ink);color:#fff;transition:transform .12s,opacity .15s;display:inline-flex;align-items:center;gap:7px}
+.btn:hover{opacity:.92}.btn:active{transform:scale(.97)}
+.btn.sun{background:var(--sun);color:var(--ink)}
+.btn.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line)}
+.btn.sm{padding:6px 11px;font-size:12.5px;border-radius:8px}
+.btn.danger{background:transparent;color:var(--coral);border:1.5px solid #F0CCC6}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+input[type=text],input[type=password],textarea,select{font:inherit;font-size:14px;width:100%;border:1.5px solid var(--line);border-radius:10px;padding:9px 12px;background:#FAFBFD;color:var(--ink);outline:none;transition:border-color .15s}
+input:focus,textarea:focus,select:focus{border-color:var(--sun)}
+textarea{resize:vertical;min-height:110px}
+label.f{display:block;font-weight:600;font-size:13px;margin:14px 0 5px}
+.row{display:flex;gap:10px;align-items:center}
+.row>*{flex:none}.row .grow{flex:1}
+
+/* ---------- Tasks ---------- */
+.task-list{list-style:none;margin-top:12px;display:flex;flex-direction:column;gap:6px}
+.task{display:flex;align-items:center;gap:11px;background:#FAFBFD;border:1px solid var(--line);border-radius:10px;padding:9px 12px}
+.task input[type=checkbox]{width:17px;height:17px;accent-color:var(--sage);cursor:pointer;flex:none}
+.task .t-text{flex:1;font-size:14px}
+.task.done .t-text{text-decoration:line-through;color:var(--slate)}
+.task .x{background:none;border:0;color:#B6C0CE;cursor:pointer;font-size:15px;padding:2px 5px;border-radius:6px}
+.task .x:hover{color:var(--coral);background:#FBEEEC}
+
+/* ---------- News / events / songs ---------- */
+.news-item{padding:11px 0;border-bottom:1px solid var(--line)}
+.news-item:last-child{border-bottom:0}
+.news-item h4{font-size:14.5px;font-weight:600;line-height:1.4}
+.news-item .src{font-family:var(--mono);font-size:10.5px;color:var(--slate);margin-top:3px}
+.news-item a{color:inherit;text-decoration:none}
+.news-item a:hover{color:var(--coral)}
+.song{display:flex;align-items:center;gap:12px;padding:9px 6px;border-bottom:1px solid var(--line);cursor:pointer;border-radius:8px;transition:background .12s}
+.song:hover{background:var(--mist)}
+.song:last-child{border-bottom:0}
+.song .n{font-family:var(--mono);font-size:11px;color:var(--slate);width:20px;text-align:right;flex:none}
+.song .meta{flex:1;min-width:0}
+.song .meta b{display:block;font-size:14px}
+.song .meta span{font-size:12.5px;color:var(--slate)}
+.song.playing{background:#FFF6E8}
+.song.playing .n{color:var(--sun)}
+.frame{width:100%;aspect-ratio:16/9;border:0;border-radius:12px;background:var(--night)}
+.frame.tall{aspect-ratio:16/10}
+
+/* ---------- Journal ---------- */
+.journal-entry{border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:10px;background:#FAFBFD}
+.journal-entry .jd{font-family:var(--mono);font-size:11px;color:var(--coral);letter-spacing:.08em;margin-bottom:6px}
+.journal-entry p{font-size:13.5px;color:var(--ink-soft);white-space:pre-wrap}
+
+/* ---------- Developer (night mode panels) ---------- */
+.dev-panel{background:var(--night);border:1px solid var(--night-line);border-radius:var(--r);padding:18px 20px;color:#D7E0F0}
+.dev-panel .kicker{color:#7E8FAA}
+.dev-panel .kicker::after{background:var(--night-line)}
+.code-area{font-family:var(--mono);font-size:13px;line-height:1.6;background:var(--night-2);color:#D7E0F0;border:1px solid var(--night-line);border-radius:10px;width:100%;padding:12px 14px;min-height:200px;resize:vertical;outline:none;tab-size:2}
+.code-area:focus{border-color:var(--sun)}
+.console{font-family:var(--mono);font-size:12.5px;background:#0A101C;border:1px solid var(--night-line);border-radius:10px;padding:12px 14px;min-height:90px;max-height:280px;overflow:auto;white-space:pre-wrap;color:#9FE8B8}
+.console .err{color:#FF9D8F}
+.dev-tabs{display:flex;gap:6px;margin-bottom:12px}
+.dev-tab{font-family:var(--mono);font-size:11.5px;letter-spacing:.06em;background:transparent;border:1px solid var(--night-line);color:#9AA8C2;border-radius:8px;padding:6px 13px;cursor:pointer}
+.dev-tab.active{background:var(--sun);border-color:var(--sun);color:var(--ink);font-weight:600}
+.preview-frame{width:100%;min-height:260px;border:1px solid var(--night-line);border-radius:10px;background:#fff}
+
+/* ---------- Banners / misc ---------- */
+.banner{border-radius:12px;padding:13px 16px;font-size:13.5px;margin-bottom:18px;display:flex;gap:10px;align-items:flex-start}
+.banner.warn{background:#FFF4E2;border:1px solid #F2DDB4;color:#7A5A1E}
+.banner.err{background:#FBEEEC;border:1px solid #F0CCC6;color:#8C3A2D}
+.banner a{color:inherit;font-weight:600}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(0,0,0,.15);border-top-color:var(--sun);border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.empty{color:var(--slate);font-size:13.5px;font-style:italic;padding:8px 0}
+.mt{margin-top:14px}.mb{margin-bottom:14px}
+hr.soft{border:0;border-top:1px solid var(--line);margin:16px 0}
+.idea-num{font-family:var(--mono);font-size:11px;color:var(--sun);letter-spacing:.1em}
+
+/* ---------- Responsive ---------- */
+@media (max-width:980px){
+  .app{grid-template-columns:1fr}
+  .rail{position:fixed;z-index:50;left:0;top:0;width:240px;transform:translateX(-100%);transition:transform .25s}
+  .rail.open{transform:none}
+  main{padding:18px 16px 56px}
+  .g2,.g3{grid-template-columns:1fr}
+  .menu-fab{display:flex}
+}
+.menu-fab{display:none;position:fixed;z-index:60;bottom:18px;left:18px;width:50px;height:50px;border-radius:50%;background:var(--ink);color:#fff;border:0;font-size:19px;align-items:center;justify-content:center;box-shadow:0 8px 20px rgba(22,36,58,.35);cursor:pointer}
+:focus-visible{outline:2px solid var(--sun);outline-offset:2px}
+</style>
+</head>
+<body>
+<button class="menu-fab" id="menuFab" aria-label="Open menu">☰</button>
+<div class="app">
+
+<!-- ===================== NAV RAIL ===================== -->
+<nav class="rail" id="rail">
+  <div class="brand">
+    <div class="brand-sun"></div>
+    <div><h1>Daybreak</h1><small>Daily command center</small></div>
+  </div>
+
+  <div class="nav-group">Begin</div>
+  <button class="nav-btn active" data-view="today"><span class="ic">☀️</span>Today</button>
+  <button class="nav-btn" data-view="tasks"><span class="ic">✅</span>Tasks</button>
+  <button class="nav-btn" data-view="local"><span class="ic">📰</span>News &amp; Events</button>
+
+  <div class="nav-group">Enjoy</div>
+  <button class="nav-btn" data-view="inspire"><span class="ic">💡</span>Daily Ideas</button>
+  <button class="nav-btn" data-view="fun"><span class="ic">😄</span>Fun</button>
+  <button class="nav-btn" data-view="movies"><span class="ic">🎬</span>Trailers</button>
+  <button class="nav-btn" data-view="music"><span class="ic">🎵</span>Music</button>
+
+  <div class="nav-group">Reflect &amp; Build</div>
+  <button class="nav-btn" data-view="journal"><span class="ic">📓</span>Journal</button>
+  <button class="nav-btn" data-view="dev"><span class="ic">⌨️</span>Dev Studio</button>
+
+  <div class="rail-foot">
+    <div><span class="dot" id="fbDot"></span>Firebase</div>
+    <div><span class="dot" id="aiDot"></span>OpenAI</div>
+  </div>
+</nav>
+
+<!-- ===================== MAIN ===================== -->
+<main>
+
+<!-- Sun-arc day header -->
+<header class="day-head">
+  <div class="greet" id="greet">Good morning</div>
+  <div class="date-line" id="dateLine"></div>
+  <div class="arc-wrap">
+    <svg viewBox="0 0 1000 110" preserveAspectRatio="none" aria-hidden="true">
+      <path class="arc-path" d="M 20 100 Q 500 -60 980 100"/>
+      <path class="arc-done" id="arcDone" d=""/>
+      <circle class="sun-dot" id="sunDot" r="8" cx="20" cy="100"/>
+      <text class="arc-label" x="20" y="108" text-anchor="start">SUNRISE</text>
+      <text class="arc-label" x="980" y="108" text-anchor="end">SUNSET</text>
+      <text class="arc-label" id="arcTime" x="500" y="20" text-anchor="middle"></text>
+    </svg>
+  </div>
+</header>
+
+<div id="setupBanner" class="banner warn" style="display:none">
+  <span>⚙️</span>
+  <span><b>Almost ready.</b> Open <code style="font-family:var(--mono);font-size:12px">daybreak.html</code> in your editor and fill in the <b>FIREBASE_CONFIG</b>, <b>OPENAI_PROXY_URL</b> (or <b>OPENAI_KEY</b> for private use), and <b>DEFAULT_LOCATION</b> constants at the top of the &lt;script&gt; block, then reload this page.</span>
+</div>
+
+<!-- ===================== TODAY ===================== -->
+<section class="view active" id="view-today">
+  <h2 class="sec-title">Today's Faith</h2>
+  <p class="sec-sub">A verse, devotional, and prayer generated fresh each morning and saved for the day.</p>
+  <div class="row mb"><button class="btn sun" id="btnGenDaily">Generate today's content</button><span id="dailyStatus" class="muted"></span></div>
+  <div class="grid g2">
+    <div class="card accent" style="grid-column:1/-1">
+      <div class="kicker">Verse of the day</div>
+      <div class="verse-text" id="verseText">—</div>
+      <div class="verse-ref" id="verseRef"></div>
+    </div>
+    <div class="card sage">
+      <div class="kicker">Devotional</div>
+      <div class="prose" id="devotional"><p class="empty">Generate today's content to begin.</p></div>
+    </div>
+    <div class="card coral">
+      <div class="kicker">Prayer for today</div>
+      <div class="prose" id="prayer"><p class="empty">Generate today's content to begin.</p></div>
+    </div>
+    <div class="card">
+      <div class="kicker">Act of kindness</div>
+      <div class="prose" id="kindness"><p class="empty">—</p></div>
+    </div>
+    <div class="card">
+      <div class="kicker">Word of the day</div>
+      <div class="big-word" id="wordTerm">—</div>
+      <p class="prose mt" id="wordDef"></p>
+      <p class="muted mt" id="wordEx"></p>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== TASKS ===================== -->
+<section class="view" id="view-tasks">
+  <h2 class="sec-title">Tasks</h2>
+  <p class="sec-sub">Work and home, side by side. Synced live to Firestore.</p>
+  <div class="grid g2">
+    <div class="card accent">
+      <div class="kicker">Work — Aqua-Aerobic</div>
+      <div class="row"><input type="text" class="grow" id="workInput" placeholder="Add a work task… (Enter)"><button class="btn sm" id="workAdd">Add</button></div>
+      <ul class="task-list" id="workList"></ul>
+    </div>
+    <div class="card sage">
+      <div class="kicker">Home</div>
+      <div class="row"><input type="text" class="grow" id="homeInput" placeholder="Add a home task… (Enter)"><button class="btn sm" id="homeAdd">Add</button></div>
+      <ul class="task-list" id="homeList"></ul>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== NEWS & EVENTS ===================== -->
+<section class="view" id="view-local">
+  <h2 class="sec-title">News &amp; Events</h2>
+  <p class="sec-sub">Live headlines and nearby happenings, fetched by an OpenAI web-search model for <b id="locLabel">your area</b>.</p>
+  <div class="row mb"><button class="btn sun" id="btnNews">Fetch today's news &amp; events</button><span id="newsStatus" class="muted"></span></div>
+  <div class="grid g3">
+    <div class="card accent"><div class="kicker">Local news</div><div id="localNews"><p class="empty">Nothing fetched yet.</p></div></div>
+    <div class="card"><div class="kicker">National news</div><div id="nationalNews"><p class="empty">Nothing fetched yet.</p></div></div>
+    <div class="card coral"><div class="kicker">Events near you</div><div id="localEvents"><p class="empty">Nothing fetched yet.</p></div></div>
+  </div>
+</section>
+
+<!-- ===================== DAILY IDEAS ===================== -->
+<section class="view" id="view-inspire">
+  <h2 class="sec-title">Daily Ideas</h2>
+  <p class="sec-sub">One spark in each direction — business, code, 3D printing, and time with your wife.</p>
+  <div class="grid g2">
+    <div class="card accent"><div class="kicker">Business idea</div><div class="prose" id="bizIdea"><p class="empty">Generate today's content on the Today tab.</p></div></div>
+    <div class="card"><div class="kicker">Programming idea</div><div class="prose" id="progIdea"><p class="empty">—</p></div></div>
+    <div class="card sage"><div class="kicker">3D / STL design of the day</div><div class="prose" id="stlIdea"><p class="empty">—</p></div>
+      <div class="mt"><a id="stlSearch" class="btn ghost sm" target="_blank" rel="noopener" style="display:none;text-decoration:none">Find similar on Printables ↗</a></div></div>
+    <div class="card coral"><div class="kicker">Date &amp; activity ideas with your wife</div><div id="dateIdeas"><p class="empty">—</p></div></div>
+  </div>
+</section>
+
+<!-- ===================== FUN ===================== -->
+<section class="view" id="view-fun">
+  <h2 class="sec-title">Fun</h2>
+  <p class="sec-sub">A laugh before lunch is a productivity strategy.</p>
+  <div class="grid g2">
+    <div class="card accent" style="grid-column:1/-1">
+      <div class="kicker">Dad joke of the day</div>
+      <div class="verse-text" id="dadJoke">Loading a groaner…</div>
+      <div class="mt"><button class="btn ghost sm" id="btnJoke">Another one</button></div>
+    </div>
+    <div class="card" style="grid-column:1/-1">
+      <div class="kicker">Funny video of the day</div>
+      <iframe class="frame" id="funnyFrame" title="Funny video of the day" allowfullscreen loading="lazy"></iframe>
+      <p class="muted mt">Rotates daily through clean comedy searches on YouTube.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== TRAILERS ===================== -->
+<section class="view" id="view-movies">
+  <h2 class="sec-title">Movie Trailers</h2>
+  <p class="sec-sub">Today's top trailers by mood — pick your evening.</p>
+  <div class="grid g3" id="trailerGrid">
+    <div class="card coral"><div class="kicker">Romantic comedy</div><iframe class="frame tall" id="trRom" title="Romantic comedy trailers" allowfullscreen loading="lazy"></iframe></div>
+    <div class="card accent"><div class="kicker">Action</div><iframe class="frame tall" id="trAct" title="Action trailers" allowfullscreen loading="lazy"></iframe></div>
+    <div class="card"><div class="kicker">Drama</div><iframe class="frame tall" id="trDra" title="Drama trailers" allowfullscreen loading="lazy"></iframe></div>
+  </div>
+</section>
+
+<!-- ===================== MUSIC ===================== -->
+<section class="view" id="view-music">
+  <h2 class="sec-title">Music — 10 for Today</h2>
+  <p class="sec-sub">A daily mix of Christian, Country, and Yacht Rock. Click a song to stream it in the player.</p>
+  <div class="grid g2">
+    <div class="card accent">
+      <div class="kicker">Today's ten</div>
+      <div id="songList"><p class="empty">Generate today's content on the Today tab to build the mix.</p></div>
+    </div>
+    <div class="card">
+      <div class="kicker">Now playing</div>
+      <iframe class="frame" id="musicFrame" title="Music player" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+      <p class="muted mt" id="nowPlaying">Pick a song from the list.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== JOURNAL ===================== -->
+<section class="view" id="view-journal">
+  <h2 class="sec-title">Personal Journal</h2>
+  <p class="sec-sub">One page per day. Saved privately to your Firestore.</p>
+  <div class="card accent mb">
+    <div class="kicker" id="journalDateK">Today's entry</div>
+    <textarea id="journalText" placeholder="How was today? What are you grateful for?"></textarea>
+    <div class="row mt"><button class="btn sun" id="journalSave">Save entry</button><span class="muted" id="journalStatus"></span></div>
+  </div>
+  <div class="card"><div class="kicker">Past entries</div><div id="journalPast"><p class="empty">No entries yet.</p></div></div>
+</section>
+
+<!-- ===================== DEV STUDIO ===================== -->
+<section class="view" id="view-dev">
+  <h2 class="sec-title">Dev Studio</h2>
+  <p class="sec-sub">A playground for HTML, JavaScript, and Python — plus a dev journal to capture what you learned.</p>
+
+  <div class="dev-panel mb">
+    <div class="kicker">Playground</div>
+    <div class="dev-tabs">
+      <button class="dev-tab active" data-lang="html">HTML + JS</button>
+      <button class="dev-tab" data-lang="js">JavaScript</button>
+      <button class="dev-tab" data-lang="py">Python</button>
+    </div>
+    <textarea class="code-area" id="codeArea" spellcheck="false"></textarea>
+    <div class="row mt">
+      <button class="btn sun" id="runBtn">▶ Run</button>
+      <button class="btn ghost sm" id="clearOut" style="color:#9AA8C2;border-color:var(--night-line)">Clear output</button>
+      <span class="muted" id="pyStatus" style="color:#7E8FAA"></span>
+    </div>
+    <div class="mt" id="htmlPreviewWrap"><iframe class="preview-frame" id="previewFrame" title="Code preview" sandbox="allow-scripts"></iframe></div>
+    <div class="mt" id="consoleWrap" style="display:none"><div class="console" id="consoleOut"></div></div>
+  </div>
+
+  <div class="card sage">
+    <div class="kicker" id="devJournalDateK">Dev journal — today</div>
+    <textarea id="devJournalText" placeholder="Bugs squashed, patterns learned, ideas to revisit…"></textarea>
+    <div class="row mt"><button class="btn" id="devJournalSave">Save dev entry</button><span class="muted" id="devJournalStatus"></span></div>
+    <hr class="soft">
+    <div id="devJournalPast"><p class="empty">No dev entries yet.</p></div>
+  </div>
+</section>
+
+</main>
+</div>
+<script>
+/* =====================================================================
+   DAYBREAK — single-file daily command center
+   All configuration lives in the constants below. Fill them in, save,
+   reload — that's the whole setup.
+   ===================================================================== */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCE7LWow8RxILsvO89KWdizYmzfVWS5jZU",
+  authDomain: "myapp-5acc3.firebaseapp.com",
+  databaseURL: "https://myapp-5acc3.firebaseio.com",
+  projectId: "myapp-5acc3",
+  storageBucket: "myapp-5acc3.firebasestorage.app",
+  messagingSenderId: "903180039566",
+  appId: "1:903180039566:web:a8ea1cc7c59947f53120df"
+};
+
+/* Optional: hard-code your OpenAI key + location here so Settings is pre-filled.
+   ⚠ Only do this if the file stays private (local disk / locked-down internal server).
+   Anyone who can View Source on this page can read and use the key. */
+const OPENAI_PROXY_URL = "gentle-fog-4b3b.ckonkol.workers.dev";           // e.g. "https://daybreak-openai.yourname.workers.dev"
+                                       // When set, the key lives in the Worker — leave OPENAI_KEY empty.
+const OPENAI_KEY = "";                 // direct mode only (private/local use). NEVER fill this on a public site.
+const DEFAULT_LOCATION = "Kimberling City, Mo";          
+const OPENAI_MODEL = "gpt-4o-mini";    // daily content: gpt-4o-mini | gpt-4o | gpt-4.1-mini
+const NEWS_MODEL = "gpt-4o-mini-search-preview"; // news: must be a -search-preview model
+
+/* --- Do not edit below: safely resolve whatever constants exist above. ---
+   Accepts the Firebase console's own variable name (firebaseConfig) too, so
+   pasting their snippet verbatim still works. */
+const _FB = (() => {
+  try{ if (typeof FIREBASE_CONFIG !== "undefined" && FIREBASE_CONFIG && FIREBASE_CONFIG.projectId) return FIREBASE_CONFIG; }catch(e){}
+  try{ if (typeof firebaseConfig !== "undefined" && firebaseConfig && firebaseConfig.projectId) return firebaseConfig; }catch(e){}
+  return {};
+})();
+const _AI_KEY = (typeof OPENAI_KEY !== "undefined" && OPENAI_KEY) || "";
+const _PROXY  = (typeof OPENAI_PROXY_URL !== "undefined" && OPENAI_PROXY_URL) || "";
+const _LOC    = (typeof DEFAULT_LOCATION !== "undefined" && DEFAULT_LOCATION) || "";
+const _MODEL  = (typeof OPENAI_MODEL !== "undefined" && OPENAI_MODEL) || "gpt-4o-mini";
+const _NMODEL = (typeof NEWS_MODEL !== "undefined" && NEWS_MODEL) || "gpt-4o-mini-search-preview";
+
+/* ---------------- state ---------------- */
+const S = {
+  db:null, fbOK:false,
+  settings:{ openaiKey:_AI_KEY, model:_MODEL, newsModel:_NMODEL, location:_LOC },
+  daily:null, pyodide:null, currentLang:"html",
+  code:{ html:"", js:"", py:"" }
+};
+const $ = id => document.getElementById(id);
+const todayKey = () => new Date().toISOString().slice(0,10);
+const dayOfYear = () => Math.floor((Date.now() - new Date(new Date().getFullYear(),0,0)) / 864e5);
+const esc = s => String(s??"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+/* ---------------- navigation ---------------- */
+document.querySelectorAll(".nav-btn").forEach(b => b.addEventListener("click", () => showView(b.dataset.view)));
+document.querySelectorAll("[data-goto]").forEach(a => a.addEventListener("click", e => { e.preventDefault(); showView(a.dataset.goto); }));
+function showView(v){
+  document.querySelectorAll(".view").forEach(x => x.classList.toggle("active", x.id === "view-"+v));
+  document.querySelectorAll(".nav-btn").forEach(x => x.classList.toggle("active", x.dataset.view === v));
+  $("rail").classList.remove("open");
+}
+$("menuFab").addEventListener("click", () => $("rail").classList.toggle("open"));
+
+/* ---------------- sun arc header (signature) ---------------- */
+function arcPoint(t){ // t in [0,1] along quadratic bezier M20,100 Q500,-60 980,100
+  const x = (1-t)*(1-t)*20 + 2*(1-t)*t*500 + t*t*980;
+  const y = (1-t)*(1-t)*100 + 2*(1-t)*t*(-60) + t*t*100;
+  return [x,y];
+}
+function updateArc(){
+  const now = new Date();
+  const h = now.getHours() + now.getMinutes()/60;
+  const t = Math.min(1, Math.max(0, (h - 6) / 14));            // 6 AM → 8 PM
+  const [x,y] = arcPoint(t);
+  $("sunDot").setAttribute("cx",x); $("sunDot").setAttribute("cy",y);
+  let d = "M 20 100"; for(let i=1;i<=40;i++){ const tt=t*i/40, p=arcPoint(tt); d+=` L ${p[0].toFixed(1)} ${p[1].toFixed(1)}`; }
+  $("arcDone").setAttribute("d", t>0 ? d : "");
+  $("arcTime").textContent = now.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"}).toUpperCase();
+  $("greet").textContent = h<12 ? "Good morning, Chuck" : h<17 ? "Good afternoon, Chuck" : "Good evening, Chuck";
+  $("dateLine").textContent = now.toLocaleDateString([], {weekday:"long", year:"numeric", month:"long", day:"numeric"});
+}
+updateArc(); setInterval(updateArc, 60000);
+
+/* ---------------- firebase ---------------- */
+function initFirebase(cfg){
+  try{
+    if (firebase.apps.length) firebase.app().delete();
+  }catch(e){}
+  try{
+    firebase.initializeApp(cfg);
+    S.db = firebase.firestore();
+    S.fbOK = true;
+    $("fbDot").className = "dot ok";
+    startTasks(); loadJournals(); loadDaily();
+    return true;
+  }catch(e){
+    S.fbOK = false; $("fbDot").className = "dot err";
+    console.error("Firebase init failed:", e.message);
+    return false;
+  }
+}
+if (_FB.projectId) initFirebase(_FB);
+else { $("setupBanner").style.display = "flex"; $("fbDot").className = "dot warn"; }
+
+
+/* ---------------- settings (from constants at top of file) ---------------- */
+function refreshAIStatus(){
+  $("aiDot").className = "dot " + ((_PROXY || S.settings.openaiKey) ? "ok" : "warn");
+  $("locLabel").textContent = S.settings.location || "your area";
+}
+refreshAIStatus();
+
+/* ---------------- OpenAI helpers ---------------- */
+async function openai(messages, {model, json=false, tools=null} = {}){
+  if(!_PROXY && !S.settings.openaiKey)
+    throw new Error("Set OPENAI_PROXY_URL (recommended) or OPENAI_KEY at the top of daybreak.html.");
+  const body = { model: model || S.settings.model, messages };
+  if(json) body.response_format = {type:"json_object"};
+  const url = _PROXY || "https://api.openai.com/v1/chat/completions";
+  const headers = { "Content-Type":"application/json" };
+  if(!_PROXY) headers["Authorization"] = "Bearer " + S.settings.openaiKey;  // proxy adds the key server-side
+  const r = await fetch(url, { method:"POST", headers, body: JSON.stringify(body) });
+  if(!r.ok){ const t = await r.text(); throw new Error("OpenAI " + r.status + ": " + t.slice(0,200)); }
+  const data = await r.json();
+  return data.choices[0].message.content;
+}
+
+/* ---------------- daily content ---------------- */
+async function loadDaily(){
+  if(!S.fbOK) return;
+  const doc = await S.db.collection("daily").doc(todayKey()).get();
+  if(doc.exists){ S.daily = doc.data(); renderDaily(); $("dailyStatus").textContent = "Loaded today's saved content ✓"; }
+}
+$("btnGenDaily").addEventListener("click", generateDaily);
+async function generateDaily(){
+  const btn = $("btnGenDaily");
+  btn.disabled = true; $("dailyStatus").innerHTML = '<span class="spin"></span> Generating…';
+  try{
+    const prompt = `You create uplifting daily content for a Christian husband and software developer in ${S.settings.location || "the Midwest US"}. Today is ${new Date().toDateString()}.
+Return ONLY a JSON object with exactly these keys:
+"verse": {"ref": "Book Chapter:Verse", "text": "full verse text (ESV-style wording)"},
+"devotional": "3 short paragraphs (separate with \\n\\n) reflecting on the verse, practical for work and family life",
+"prayer": "a sincere 4-6 sentence prayer tied to the verse",
+"kindness": "one specific, doable act of kindness for today",
+"word": {"term": "an interesting English word", "def": "concise definition", "example": "example sentence"},
+"businessIdea": "one specific small-business or side-project idea, 2-3 sentences",
+"programmingIdea": "one weekend-sized coding project idea for a full-stack web developer, 2-3 sentences",
+"stlIdea": "one practical or fun 3D-printable design idea with brief print notes (orientation, supports), 2-3 sentences",
+"dateIdeas": ["idea 1", "idea 2", "idea 3"]  (activities to do with my wife today — mix of at-home and out, season-appropriate),
+"songs": [10 objects {"title","artist","genre"} where genre is exactly "Christian", "Country", or "Yacht Rock" — pick well-known, real songs, roughly 4/3/3 split, vary daily]`;
+    const out = await openai([{role:"user", content: prompt}], {json:true});
+    S.daily = JSON.parse(out);
+    S.daily.generatedAt = new Date().toISOString();
+    if(S.fbOK) await S.db.collection("daily").doc(todayKey()).set(S.daily);
+    renderDaily();
+    $("dailyStatus").textContent = "Fresh content generated ✓";
+  }catch(e){ $("dailyStatus").textContent = "✗ " + e.message; }
+  btn.disabled = false;
+}
+function renderDaily(){
+  const d = S.daily; if(!d) return;
+  $("verseText").textContent = "“" + (d.verse?.text || "") + "”";
+  $("verseRef").textContent = "— " + (d.verse?.ref || "");
+  $("devotional").innerHTML = (d.devotional||"").split(/\n\n+/).map(p=>`<p>${esc(p)}</p>`).join("");
+  $("prayer").innerHTML = `<p>${esc(d.prayer||"")}</p>`;
+  $("kindness").innerHTML = `<p>${esc(d.kindness||"")}</p>`;
+  $("wordTerm").textContent = d.word?.term || "—";
+  $("wordDef").textContent = d.word?.def || "";
+  $("wordEx").textContent = d.word?.example ? "“" + d.word.example + "”" : "";
+  $("bizIdea").innerHTML = `<p>${esc(d.businessIdea||"")}</p>`;
+  $("progIdea").innerHTML = `<p>${esc(d.programmingIdea||"")}</p>`;
+  $("stlIdea").innerHTML = `<p>${esc(d.stlIdea||"")}</p>`;
+  if(d.stlIdea){ const a=$("stlSearch"); a.style.display="inline-flex";
+    a.href = "https://www.printables.com/search/models?q=" + encodeURIComponent(d.stlIdea.split(/[.,]/)[0]); }
+  $("dateIdeas").innerHTML = (d.dateIdeas||[]).map((x,i)=>`<div class="news-item"><span class="idea-num">0${i+1}</span><h4>${esc(x)}</h4></div>`).join("") || '<p class="empty">—</p>';
+  renderSongs();
+}
+
+/* ---------------- music ---------------- */
+function renderSongs(){
+  const songs = S.daily?.songs || [];
+  if(!songs.length){ return; }
+  $("songList").innerHTML = songs.map((s,i)=>`
+    <div class="song" data-i="${i}" role="button" tabindex="0">
+      <span class="n">${String(i+1).padStart(2,"0")}</span>
+      <div class="meta"><b>${esc(s.title)}</b><span>${esc(s.artist)}</span></div>
+      <span class="pill genre-${esc((s.genre||"").split(" ")[0])}">${esc(s.genre)}</span>
+    </div>`).join("");
+  $("songList").querySelectorAll(".song").forEach(el => {
+    const play = () => playSong(+el.dataset.i);
+    el.addEventListener("click", play);
+    el.addEventListener("keydown", e => { if(e.key==="Enter") play(); });
+  });
+}
+function playSong(i){
+  const s = S.daily.songs[i];
+  const q = encodeURIComponent(`${s.title} ${s.artist} official audio`);
+  $("musicFrame").src = `https://www.youtube.com/embed?listType=search&list=${q}&autoplay=1`;
+  $("nowPlaying").textContent = `Now playing search results for: ${s.title} — ${s.artist}`;
+  $("songList").querySelectorAll(".song").forEach((el,j)=>el.classList.toggle("playing", j===i));
+}
+
+/* ---------------- news & events ---------------- */
+$("btnNews").addEventListener("click", fetchNews);
+async function fetchNews(){
+  const btn = $("btnNews"); btn.disabled = true;
+  $("newsStatus").innerHTML = '<span class="spin"></span> Searching the web…';
+  try{
+    const loc = S.settings.location || "the United States";
+    const prompt = `Search the web and return ONLY a JSON object:
+{"local":[5 items {"headline","source","url"} — today's top local news for ${loc}],
+ "national":[5 items {"headline","source","url"} — today's top US national news],
+ "events":[5 items {"name","when","where","url"} — events happening this week near ${loc}]}
+Use real, current results with working URLs. No commentary, JSON only.`;
+    let out = await openai([{role:"user", content: prompt}], {model: S.settings.newsModel});
+    out = out.replace(/```json|```/g,"").trim();
+    const j = JSON.parse(out.slice(out.indexOf("{"), out.lastIndexOf("}")+1));
+    const item = n => `<div class="news-item"><h4><a href="${esc(n.url||"#")}" target="_blank" rel="noopener">${esc(n.headline||n.name)}</a></h4><div class="src">${esc(n.source || [n.when,n.where].filter(Boolean).join(" · "))}</div></div>`;
+    $("localNews").innerHTML    = (j.local||[]).map(item).join("")    || '<p class="empty">None found.</p>';
+    $("nationalNews").innerHTML = (j.national||[]).map(item).join("") || '<p class="empty">None found.</p>';
+    $("localEvents").innerHTML  = (j.events||[]).map(item).join("")   || '<p class="empty">None found.</p>';
+    $("newsStatus").textContent = "Updated " + new Date().toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});
+  }catch(e){ $("newsStatus").textContent = "✗ " + e.message; }
+  btn.disabled = false;
+}
+
+/* ---------------- fun: dad joke + daily video rotations ---------------- */
+async function fetchJoke(){
+  try{
+    const r = await fetch("https://icanhazdadjoke.com/", {headers:{Accept:"application/json"}});
+    const j = await r.json();
+    $("dadJoke").textContent = j.joke;
+  }catch(e){ $("dadJoke").textContent = "Why did the API cross the road? CORS wouldn't let it. (Live joke fetch failed — try again.)"; }
+}
+$("btnJoke").addEventListener("click", fetchJoke);
+fetchJoke();
+
+const ytSearch = q => "https://www.youtube.com/embed?listType=search&list=" + encodeURIComponent(q);
+(function dailyEmbeds(){
+  const d = dayOfYear();
+  const funny = ["clean comedy sketch","funny animals compilation","dry bar comedy clip","kids say funny things","funny golden retriever","office humor sketch","blooper reel clean"];
+  $("funnyFrame").src = ytSearch(funny[d % funny.length] + " " + new Date().getFullYear());
+  const y = new Date().getFullYear();
+  $("trRom").src = ytSearch(`official romantic comedy movie trailer ${y}`);
+  $("trAct").src = ytSearch(`official action movie trailer ${y}`);
+  $("trDra").src = ytSearch(`official drama movie trailer ${y}`);
+})();
+
+/* ---------------- tasks ---------------- */
+function startTasks(){
+  if(!S.fbOK) return;
+  S.db.collection("tasks").orderBy("created","desc").onSnapshot(snap => {
+    const work=[], home=[];
+    snap.forEach(doc => { const t = {id:doc.id, ...doc.data()}; (t.type==="work"?work:home).push(t); });
+    renderTasks("workList", work); renderTasks("homeList", home);
+  });
+}
+function renderTasks(listId, items){
+  $(listId).innerHTML = items.map(t => `
+    <li class="task ${t.done?"done":""}" data-id="${t.id}">
+      <input type="checkbox" ${t.done?"checked":""} aria-label="Done">
+      <span class="t-text">${esc(t.text)}</span>
+      <button class="x" aria-label="Delete">✕</button>
+    </li>`).join("") || '<li class="empty">All clear. 🎉</li>';
+  $(listId).querySelectorAll(".task").forEach(li => {
+    const id = li.dataset.id;
+    li.querySelector("input").addEventListener("change", e => S.db.collection("tasks").doc(id).update({done: e.target.checked}));
+    li.querySelector(".x").addEventListener("click", () => S.db.collection("tasks").doc(id).delete());
+  });
+}
+function addTask(type, inputId){
+  const inp = $(inputId), text = inp.value.trim();
+  if(!text) return;
+  if(!S.fbOK){ alert("Connect Firebase in Settings to save tasks."); return; }
+  S.db.collection("tasks").add({type, text, done:false, created: Date.now()});
+  inp.value = "";
+}
+$("workAdd").addEventListener("click", () => addTask("work","workInput"));
+$("homeAdd").addEventListener("click", () => addTask("home","homeInput"));
+$("workInput").addEventListener("keydown", e => e.key==="Enter" && addTask("work","workInput"));
+$("homeInput").addEventListener("keydown", e => e.key==="Enter" && addTask("home","homeInput"));
+
+/* ---------------- journals (personal + dev) ---------------- */
+function journalUI(coll, textId, saveId, statusId, pastId, dateKId){
+  $(dateKId).textContent = ($(dateKId).textContent.split("—")[0].trim() + " — " + new Date().toLocaleDateString());
+  $(saveId).addEventListener("click", async () => {
+    if(!S.fbOK){ $(statusId).textContent = "Connect Firebase first."; return; }
+    await S.db.collection(coll).doc(todayKey()).set({text: $(textId).value, updated: Date.now()});
+    $(statusId).textContent = "Saved ✓"; setTimeout(()=> $(statusId).textContent="", 2500);
+    loadJournalList(coll, pastId);
+  });
+}
+async function loadJournalList(coll, pastId){
+  const snap = await S.db.collection(coll).orderBy(firebase.firestore.FieldPath.documentId(),"desc").limit(14).get();
+  let html = "";
+  snap.forEach(doc => {
+    if(doc.id === todayKey()){ const box = coll==="journals" ? "journalText" : "devJournalText"; if(!$(box).value) $(box).value = doc.data().text || ""; }
+    else html += `<div class="journal-entry"><div class="jd">${doc.id}</div><p>${esc(doc.data().text||"")}</p></div>`;
+  });
+  $(pastId).innerHTML = html || '<p class="empty">No past entries yet.</p>';
+}
+function loadJournals(){ loadJournalList("journals","journalPast"); loadJournalList("devjournal","devJournalPast"); }
+journalUI("journals","journalText","journalSave","journalStatus","journalPast","journalDateK");
+journalUI("devjournal","devJournalText","devJournalSave","devJournalStatus","devJournalPast","devJournalDateK");
+
+/* ---------------- dev playground ---------------- */
+S.code.html = `<!-- HTML + JS sandbox: full page, runs in the preview below -->
+<style>body{font-family:sans-serif;padding:20px} .box{padding:14px;border-radius:10px;background:#FFF3E0}</style>
+<div class="box"><h3>Hello, Daybreak 👋</h3><button onclick="this.textContent='Clicked at '+new Date().toLocaleTimeString()">Click me</button></div>`;
+S.code.js = `// JavaScript sandbox: console.log output appears below
+const verses = ["Psalm 118:24", "Phil 4:13", "Prov 3:5"];
+verses.forEach((v,i) => console.log(\`\${i+1}. \${v}\`));
+console.log("Sum 1..100 =", [...Array(100).keys()].reduce((a,b)=>a+b+1,0));`;
+S.code.py = `# Python sandbox (Pyodide loads on first run, ~10s once)
+import math, datetime
+print("Today is", datetime.date.today().strftime("%A, %B %d"))
+print("Golden ratio:", (1+math.sqrt(5))/2)
+for i in range(1,6): print("*"*i)`;
+$("codeArea").value = S.code.html;
+
+document.querySelectorAll(".dev-tab").forEach(t => t.addEventListener("click", () => {
+  S.code[S.currentLang] = $("codeArea").value;
+  S.currentLang = t.dataset.lang;
+  document.querySelectorAll(".dev-tab").forEach(x=>x.classList.toggle("active", x===t));
+  $("codeArea").value = S.code[S.currentLang];
+  const isHtml = S.currentLang === "html";
+  $("htmlPreviewWrap").style.display = isHtml ? "block" : "none";
+  $("consoleWrap").style.display = isHtml ? "none" : "block";
+}));
+
+function logOut(msg, isErr){ const c=$("consoleOut"); c.innerHTML += `<div class="${isErr?"err":""}">${esc(msg)}</div>`; c.scrollTop = c.scrollHeight; }
+$("clearOut").addEventListener("click", () => { $("consoleOut").innerHTML=""; });
+
+$("runBtn").addEventListener("click", async () => {
+  S.code[S.currentLang] = $("codeArea").value;
+  const code = $("codeArea").value;
+  if(S.currentLang === "html"){
+    $("previewFrame").srcdoc = code;
+  } else if(S.currentLang === "js"){
+    $("consoleOut").innerHTML = "";
+    const orig = {log:console.log, error:console.error, warn:console.warn};
+    console.log = (...a)=>{ logOut(a.map(x=>typeof x==="object"?JSON.stringify(x):x).join(" ")); orig.log(...a); };
+    console.error = (...a)=>{ logOut(a.join(" "), true); orig.error(...a); };
+    console.warn = console.log;
+    try{ await (new Function(`return (async()=>{ ${code} })()`))(); }
+    catch(e){ logOut("✗ " + e.message, true); }
+    Object.assign(console, orig);
+  } else { // python
+    if(!S.pyodide){
+      $("pyStatus").innerHTML = '<span class="spin"></span> Loading Python (Pyodide)…';
+      await new Promise((res, rej) => {
+        const sc = document.createElement("script");
+        sc.src = "https://cdn.jsdelivr.net/pyodide/v0.26.1/full/pyodide.js";
+        sc.onload = res; sc.onerror = rej; document.head.appendChild(sc);
+      });
+      S.pyodide = await loadPyodide();
+      $("pyStatus").textContent = "Python ready ✓";
+    }
+    $("consoleOut").innerHTML = "";
+    S.pyodide.setStdout({batched: s => logOut(s)});
+    S.pyodide.setStderr({batched: s => logOut(s, true)});
+    try{ await S.pyodide.runPythonAsync(code); }
+    catch(e){ logOut("✗ " + e.message, true); }
+  }
+});
+</script>
+</body>
+</html>
