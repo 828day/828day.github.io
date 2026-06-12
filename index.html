@@ -335,11 +335,12 @@
     }
 
     .g2 {
-      grid-template-columns: 1fr 1fr
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
     }
 
     .g3 {
-      grid-template-columns: repeat(3, 1fr)
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      align-items: stretch;
     }
 
     .card {
@@ -1254,26 +1255,29 @@
           <span id="trailerStatus" class="muted"></span>
         </div>
         <div class="grid g3" id="trailerGrid">
-          <div class="card coral">
+          <div class="card coral" style="display:flex; flex-direction:column;">
             <div class="kicker">Romantic comedy</div>
             <div class="video-player">
               <iframe id="trRom" src="" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen
                 referrerpolicy="strict-origin-when-cross-origin"></iframe>
             </div>
+            <div id="trRomInfo" style="flex:1; display:flex; flex-direction:column;"></div>
           </div>
-          <div class="card accent">
+          <div class="card accent" style="display:flex; flex-direction:column;">
             <div class="kicker">Action</div>
             <div class="video-player">
               <iframe id="trAct" src="" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen
                 referrerpolicy="strict-origin-when-cross-origin"></iframe>
             </div>
+            <div id="trActInfo" style="flex:1; display:flex; flex-direction:column;"></div>
           </div>
-          <div class="card">
+          <div class="card" style="display:flex; flex-direction:column;">
             <div class="kicker">Faith based</div>
             <div class="video-player">
               <iframe id="trDra" src="" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen
                 referrerpolicy="strict-origin-when-cross-origin"></iframe>
             </div>
+            <div id="trDraInfo" style="flex:1; display:flex; flex-direction:column;"></div>
           </div>
         </div>
       </section>
@@ -1672,13 +1676,25 @@ Use real, current results with working URLs. No commentary, JSON only.`;
       }
     }
 
-    async function fetchAndSetAIVideo(searchQuery, iframeId, maxRetries = 5, platform = "youtube") {
+    function renderTrailerInfo(infoId, data) {
+      if (!$(infoId) || !data || !data.title) return;
+      $(infoId).innerHTML = `
+        <div style="margin-top:16px; flex:1; display:flex; flex-direction:column;">
+          <div style="font-family:var(--display);font-size:17px;font-weight:600;margin-bottom:6px;color:var(--ink);">${esc(data.title)}</div>
+          <div style="font-size:12px;color:var(--slate);margin-bottom:8px;font-family:var(--mono);">⭐ ${esc(data.rating)}</div>
+          <div style="font-size:13.5px;color:var(--ink-soft);line-height:1.5;">${esc(data.synopsis)}</div>
+        </div>
+      `;
+    }
+
+    async function fetchAndSetAIVideo(searchQuery, iframeId, maxRetries = 5, platform = "youtube", infoId = null) {
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
           const prompt = platform === "imdb" 
             ? `Search the web to find a real, working IMDb video URL for: "${searchQuery}".
+Also find the movie's title, a 1-sentence synopsis, and its IMDb rating.
 CRITICAL RULES:
-1. You MUST return ONLY a JSON object with a single key "url".
+1. Return ONLY a JSON object with keys: "url", "title", "synopsis", "rating".
 2. The URL MUST be a valid imdb.com/video/ link.
 3. The video ID MUST start with "vi" followed by numbers (e.g., vi123456789).
 4. Do NOT hallucinate. Do NOT return youtube links.`
@@ -1698,7 +1714,9 @@ CRITICAL RULES:
           
           if (safeSrc) {
             $(iframeId).src = safeSrc;
-            return safeSrc;
+            data.safeSrc = safeSrc;
+            if (infoId) renderTrailerInfo(infoId, data);
+            return data;
           } else {
             console.warn(`Attempt ${attempt}/${maxRetries}: AI returned an unparseable URL for "${searchQuery}":`, data.url);
           }
@@ -1720,10 +1738,11 @@ CRITICAL RULES:
       const doc = await S.db.collection("videos").doc(todayKey()).get();
       if (doc.exists) {
         const v = doc.data();
-        if (v.funny) $("funnyFrame").src = v.funny;
-        if (v.trRom) $("trRom").src = v.trRom;
-        if (v.trAct) $("trAct").src = v.trAct;
-        if (v.trDra) $("trDra").src = v.trDra;
+        if (v.funny) $("funnyFrame").src = typeof v.funny === "string" ? v.funny : v.funny.safeSrc;
+        
+        if (v.trRom) { $("trRom").src = typeof v.trRom === "string" ? v.trRom : v.trRom.safeSrc; renderTrailerInfo("trRomInfo", v.trRom); }
+        if (v.trAct) { $("trAct").src = typeof v.trAct === "string" ? v.trAct : v.trAct.safeSrc; renderTrailerInfo("trActInfo", v.trAct); }
+        if (v.trDra) { $("trDra").src = typeof v.trDra === "string" ? v.trDra : v.trDra.safeSrc; renderTrailerInfo("trDraInfo", v.trDra); }
         
         const t = v.updatedAt ? new Date(v.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "today";
         if (v.funny) $("funStatus").textContent = "Loaded from cache — " + t;
@@ -1749,9 +1768,9 @@ CRITICAL RULES:
       $("trailerStatus").innerHTML = AI_LOADING_HTML;
       
       // Fetch trailers sequentially to prevent OpenAI search concurrency limits (429 errors)
-      const rom = await fetchAndSetAIVideo("latest romantic comedy movie trailer official", "trRom", 5, "imdb");
-      const act = await fetchAndSetAIVideo("latest action movie trailer official", "trAct", 5, "imdb");
-      const dra = await fetchAndSetAIVideo("latest faith based movie trailer official", "trDra", 5, "imdb");
+      const rom = await fetchAndSetAIVideo("latest romantic comedy movie trailer official", "trRom", 5, "imdb", "trRomInfo");
+      const act = await fetchAndSetAIVideo("latest action movie trailer official", "trAct", 5, "imdb", "trActInfo");
+      const dra = await fetchAndSetAIVideo("latest faith based movie trailer official", "trDra", 5, "imdb", "trDraInfo");
       
       const updates = {};
       if (rom) updates.trRom = rom;
