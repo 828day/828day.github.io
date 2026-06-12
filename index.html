@@ -233,7 +233,7 @@ hr.soft{border:0;border-top:1px solid var(--line);margin:16px 0}
 
 <div id="setupBanner" class="banner warn" style="display:none">
   <span>⚙️</span>
-  <span><b>Almost ready.</b> Open <code style="font-family:var(--mono);font-size:12px">daybreak.html</code> in your editor and fill in the <b>FIREBASE_CONFIG</b>, <b>OPENAI_KEY</b>, and <b>DEFAULT_LOCATION</b> constants at the top of the &lt;script&gt; block, then reload this page.</span>
+  <span><b>Almost ready.</b> Open <code style="font-family:var(--mono);font-size:12px">daybreak.html</code> in your editor and fill in the <b>FIREBASE_CONFIG</b>, <b>OPENAI_PROXY_URL</b> (or <b>OPENAI_KEY</b> for private use), and <b>DEFAULT_LOCATION</b> constants at the top of the &lt;script&gt; block, then reload this page.</span>
 </div>
 
 <!-- ===================== TODAY ===================== -->
@@ -421,15 +421,31 @@ const FIREBASE_CONFIG = {
 /* Optional: hard-code your OpenAI key + location here so Settings is pre-filled.
    ⚠ Only do this if the file stays private (local disk / locked-down internal server).
    Anyone who can View Source on this page can read and use the key. */
-const OPENAI_KEY = "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";           
+const OPENAI_PROXY_URL = "gentle-fog-4b3b.ckonkol.workers.dev";           // e.g. "https://daybreak-openai.yourname.workers.dev"
+                                       // When set, the key lives in the Worker — leave OPENAI_KEY empty.
+const OPENAI_KEY = "";                 // direct mode only (private/local use). NEVER fill this on a public site.
 const DEFAULT_LOCATION = "Kimberling City, Mo";          
 const OPENAI_MODEL = "gpt-4o-mini";    // daily content: gpt-4o-mini | gpt-4o | gpt-4.1-mini
 const NEWS_MODEL = "gpt-4o-mini-search-preview"; // news: must be a -search-preview model
 
+/* --- Do not edit below: safely resolve whatever constants exist above. ---
+   Accepts the Firebase console's own variable name (firebaseConfig) too, so
+   pasting their snippet verbatim still works. */
+const _FB = (() => {
+  try{ if (typeof FIREBASE_CONFIG !== "undefined" && FIREBASE_CONFIG && FIREBASE_CONFIG.projectId) return FIREBASE_CONFIG; }catch(e){}
+  try{ if (typeof firebaseConfig !== "undefined" && firebaseConfig && firebaseConfig.projectId) return firebaseConfig; }catch(e){}
+  return {};
+})();
+const _AI_KEY = (typeof OPENAI_KEY !== "undefined" && OPENAI_KEY) || "";
+const _PROXY  = (typeof OPENAI_PROXY_URL !== "undefined" && OPENAI_PROXY_URL) || "";
+const _LOC    = (typeof DEFAULT_LOCATION !== "undefined" && DEFAULT_LOCATION) || "";
+const _MODEL  = (typeof OPENAI_MODEL !== "undefined" && OPENAI_MODEL) || "gpt-4o-mini";
+const _NMODEL = (typeof NEWS_MODEL !== "undefined" && NEWS_MODEL) || "gpt-4o-mini-search-preview";
+
 /* ---------------- state ---------------- */
 const S = {
   db:null, fbOK:false,
-  settings:{ openaiKey:OPENAI_KEY, model:OPENAI_MODEL, newsModel:NEWS_MODEL, location:DEFAULT_LOCATION },
+  settings:{ openaiKey:_AI_KEY, model:_MODEL, newsModel:_NMODEL, location:_LOC },
   daily:null, pyodide:null, currentLang:"html",
   code:{ html:"", js:"", py:"" }
 };
@@ -486,27 +502,27 @@ function initFirebase(cfg){
     return false;
   }
 }
-if (FIREBASE_CONFIG.projectId) initFirebase(FIREBASE_CONFIG);
+if (_FB.projectId) initFirebase(_FB);
 else { $("setupBanner").style.display = "flex"; $("fbDot").className = "dot warn"; }
 
 
 /* ---------------- settings (from constants at top of file) ---------------- */
 function refreshAIStatus(){
-  $("aiDot").className = "dot " + (S.settings.openaiKey ? "ok" : "warn");
+  $("aiDot").className = "dot " + ((_PROXY || S.settings.openaiKey) ? "ok" : "warn");
   $("locLabel").textContent = S.settings.location || "your area";
 }
 refreshAIStatus();
 
 /* ---------------- OpenAI helpers ---------------- */
 async function openai(messages, {model, json=false, tools=null} = {}){
-  if(!S.settings.openaiKey) throw new Error("Add your key to OPENAI_KEY at the top of daybreak.html.");
+  if(!_PROXY && !S.settings.openaiKey)
+    throw new Error("Set OPENAI_PROXY_URL (recommended) or OPENAI_KEY at the top of daybreak.html.");
   const body = { model: model || S.settings.model, messages };
   if(json) body.response_format = {type:"json_object"};
-  const r = await fetch("https://api.openai.com/v1/chat/completions", {
-    method:"POST",
-    headers:{ "Content-Type":"application/json", "Authorization":"Bearer " + S.settings.openaiKey },
-    body: JSON.stringify(body)
-  });
+  const url = _PROXY || "https://api.openai.com/v1/chat/completions";
+  const headers = { "Content-Type":"application/json" };
+  if(!_PROXY) headers["Authorization"] = "Bearer " + S.settings.openaiKey;  // proxy adds the key server-side
+  const r = await fetch(url, { method:"POST", headers, body: JSON.stringify(body) });
   if(!r.ok){ const t = await r.text(); throw new Error("OpenAI " + r.status + ": " + t.slice(0,200)); }
   const data = await r.json();
   return data.choices[0].message.content;
