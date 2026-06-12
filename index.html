@@ -1228,7 +1228,7 @@
             </div>
           </div>
           <div class="card">
-            <div class="kicker">Drama</div>
+            <div class="kicker">Faith based</div>
             <div class="video-player">
               <iframe id="trDra" src="" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen
                 referrerpolicy="strict-origin-when-cross-origin"></iframe>
@@ -1682,7 +1682,7 @@ CRITICAL RULES:
       // Fetch trailers sequentially to prevent OpenAI search concurrency limits (429 errors)
       const rom = await fetchAndSetAIVideo("latest romantic comedy movie trailer official", "trRom");
       const act = await fetchAndSetAIVideo("latest action movie trailer official", "trAct");
-      const dra = await fetchAndSetAIVideo("latest drama movie trailer official", "trDra");
+      const dra = await fetchAndSetAIVideo("latest faith based movie trailer official", "trDra");
       
       const updates = {};
       if (rom) updates.trRom = rom;
