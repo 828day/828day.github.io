@@ -199,6 +199,22 @@
       background: var(--sun)
     }
 
+    /* Backdrop for mobile menu */
+    .rail-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 38, 0.4);
+      z-index: 40;
+      backdrop-filter: blur(2px);
+      -webkit-backdrop-filter: blur(2px);
+      opacity: 0;
+      transition: opacity 0.25s;
+    }
+    .rail-backdrop.show {
+      opacity: 1;
+    }
+
     .dot.err {
       background: var(--coral)
     }
@@ -239,7 +255,8 @@
 
     .arc-wrap {
       height: 96px;
-      margin-top: 4px
+      margin-top: 4px;
+      position: relative;
     }
 
     .arc-wrap svg {
@@ -269,9 +286,13 @@
     .arc-label {
       font-family: var(--mono);
       font-size: 9.5px;
-      fill: var(--slate);
-      letter-spacing: .12em
+      color: var(--slate);
+      letter-spacing: .12em;
+      position: absolute;
     }
+    .arc-label.start { left: 0; bottom: -8px; }
+    .arc-label.end { right: 0; bottom: -8px; }
+    .arc-label.mid { left: 50%; top: -14px; transform: translateX(-50%); }
 
     /* ---------- Sections / cards ---------- */
     .view {
@@ -516,7 +537,8 @@
     .row {
       display: flex;
       gap: 10px;
-      align-items: center
+      align-items: center;
+      flex-wrap: wrap;
     }
 
     .row>* {
@@ -524,7 +546,8 @@
     }
 
     .row .grow {
-      flex: 1
+      flex: 1;
+      min-width: 0;
     }
 
     /* ---------- Tasks ---------- */
@@ -755,7 +778,8 @@
     .dev-tabs {
       display: flex;
       gap: 6px;
-      margin-bottom: 12px
+      margin-bottom: 12px;
+      flex-wrap: wrap;
     }
 
     .dev-tab {
@@ -858,40 +882,6 @@
       letter-spacing: .1em
     }
 
-    /* ---------- Responsive ---------- */
-    @media (max-width:980px) {
-      .app {
-        grid-template-columns: 1fr
-      }
-
-      .rail {
-        position: fixed;
-        z-index: 50;
-        left: 0;
-        top: 0;
-        width: 240px;
-        transform: translateX(-100%);
-        transition: transform .25s
-      }
-
-      .rail.open {
-        transform: none
-      }
-
-      main {
-        padding: 18px 16px 56px
-      }
-
-      .g2,
-      .g3 {
-        grid-template-columns: 1fr
-      }
-
-      .menu-fab {
-        display: flex
-      }
-    }
-
     .menu-fab {
       display: none;
       position: fixed;
@@ -909,6 +899,70 @@
       justify-content: center;
       box-shadow: 0 8px 20px rgba(22, 36, 58, .35);
       cursor: pointer
+    }
+
+    /* ---------- Responsive ---------- */
+    @media (max-width:980px) {
+      .app {
+        grid-template-columns: 1fr
+      }
+
+      .rail {
+        position: fixed;
+        z-index: 50;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        height: 100dvh;
+        width: 260px;
+        transform: translateX(-100%);
+        transition: transform .25s ease-in-out;
+      }
+
+      .rail.open {
+        transform: none
+      }
+
+      .rail-backdrop {
+        display: block;
+        pointer-events: none;
+      }
+      .rail-backdrop.show {
+        pointer-events: auto;
+      }
+
+      main {
+        padding: 16px 14px 72px
+      }
+
+      .g2,
+      .g3 {
+        grid-template-columns: 1fr
+      }
+
+      .menu-fab {
+        display: flex
+      }
+      
+      .day-head .greet {
+        font-size: 24px;
+      }
+      .sec-title {
+        font-size: 22px;
+      }
+      .card {
+        padding: 16px;
+      }
+      .verse-text {
+        font-size: 19px;
+      }
+      .btn {
+        flex: 1;
+        justify-content: center;
+      }
+      .btn.sm {
+        flex: none;
+      }
     }
 
 
@@ -941,7 +995,10 @@
 </head>
 
 <body>
-  <button class="menu-fab" id="menuFab" aria-label="Open menu">☰</button>
+  <div class="rail-backdrop" id="railBackdrop"></div>
+  <button class="menu-fab" id="menuFab" aria-label="Open menu">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+  </button>
   <div class="app">
 
     <!-- ===================== NAV RAIL ===================== -->
@@ -986,10 +1043,10 @@
             <path class="arc-path" d="M 20 100 Q 500 -60 980 100" />
             <path class="arc-done" id="arcDone" d="" />
             <circle class="sun-dot" id="sunDot" r="8" cx="20" cy="100" />
-            <text class="arc-label" x="20" y="108" text-anchor="start">SUNRISE</text>
-            <text class="arc-label" x="980" y="108" text-anchor="end">SUNSET</text>
-            <text class="arc-label" id="arcTime" x="500" y="20" text-anchor="middle"></text>
           </svg>
+          <div class="arc-label start">SUNRISE</div>
+          <div class="arc-label end">SUNSET</div>
+          <div class="arc-label mid" id="arcTime"></div>
         </div>
       </header>
 
@@ -1139,7 +1196,10 @@
               <iframe id="funnyFrame" src="" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen
                 referrerpolicy="strict-origin-when-cross-origin"></iframe>
             </div>
-            <p class="muted mt">Rotates daily through clean comedy on YouTube.</p>
+            <div class="mt row">
+              <button class="btn ghost sm" id="btnAIFun">AI Search: Fresh comedy clip</button>
+              <span id="funStatus" class="muted"></span>
+            </div>
           </div>
         </div>
       </section>
@@ -1148,6 +1208,10 @@
       <section class="view" id="view-movies">
         <h2 class="sec-title">Movie Trailers</h2>
         <p class="sec-sub">Today's top trailers by mood — pick your evening.</p>
+        <div class="row mb">
+          <button class="btn sun" id="btnAITrailers">Fetch fresh trailers</button>
+          <span id="trailerStatus" class="muted"></span>
+        </div>
         <div class="grid g3" id="trailerGrid">
           <div class="card coral">
             <div class="kicker">Romantic comedy</div>
@@ -1309,9 +1373,24 @@
     function showView(v) {
       document.querySelectorAll(".view").forEach(x => x.classList.toggle("active", x.id === "view-" + v));
       document.querySelectorAll(".nav-btn").forEach(x => x.classList.toggle("active", x.dataset.view === v));
-      $("rail").classList.remove("open");
+      closeMenu();
     }
-    $("menuFab").addEventListener("click", () => $("rail").classList.toggle("open"));
+    
+    function toggleMenu() {
+      const rail = $("rail");
+      const bd = $("railBackdrop");
+      const isOpen = rail.classList.toggle("open");
+      if (isOpen) bd.classList.add("show");
+      else bd.classList.remove("show");
+    }
+    
+    function closeMenu() {
+      $("rail").classList.remove("open");
+      $("railBackdrop").classList.remove("show");
+    }
+
+    $("menuFab").addEventListener("click", toggleMenu);
+    $("railBackdrop").addEventListener("click", closeMenu);
 
     /* ---------------- sun arc header (signature) ---------------- */
     function arcPoint(t) { // t in [0,1] along quadratic bezier M20,100 Q500,-60 980,100
@@ -1516,47 +1595,62 @@ Use real, current results with working URLs. No commentary, JSON only.`;
     fetchJoke();
 
     /* ---------- YouTube helpers — exact celebratemomandben pattern ---------- */
-    const ytSrc = id => `https://www.youtube-nocookie.com/embed/${id}?rel=0`;
-    (function dailyEmbeds() {
-      const d = dayOfYear();
-      // Clean comedy — rotate daily
-      const funny = [
-        "EJSbFKA-AAI", // Tim Hawkins – Things You Don't Say to Your Wife
-        "i8IqVCqFCGY", // Brian Regan – Letterman
-        "pBNd0XDRkOA", // Jeff Foxworthy – You Might Be a Redneck
-        "5HbYScltf1c", // Jim Gaffigan – Hot Pockets
-        "MKaFaAyHZWE", // Sebastian Maniscalco – Fortnite
-        "ABwuY-J-2MI", // Michael Jr. – Funny is the Key
-        "szBKmDDkiAQ"  // Tim Hawkins – The Government Can
-      ];
-      $("funnyFrame").src = ytSrc(funny[d % funny.length]);
-      // Movie trailers — rotate weekly
-      const w = Math.floor(d / 7);
-      const romTrailers = [
-        "GMbHMuWi-Do", // Crazy Rich Asians
-        "eBF-fVzP0OA", // Anyone But You
-        "0Zb_l4gMFCE", // Ticket to Paradise
-        "FyMnlZuAAuw", // About Time
-        "yriS5B4FXKU"  // The Idea of You
-      ];
-      const actTrailers = [
-        "qSqVVswa420", // Top Gun: Maverick
-        "qEVUtrk8_B4", // John Wick 4
-        "avz-2fgRoFQ", // Mission: Impossible Dead Reckoning
-        "uYPbbksJxIg", // Oppenheimer
-        "Way9Dexny3w"  // Dune: Part Two
-      ];
-      const draTrailers = [
-        "AhKPSjBTVM8", // The Holdovers
-        "kA7-v9RVpB8", // Past Lives
-        "RlOYDCjP5TQ", // Poor Things
-        "FnJSrGSE1pA", // Tár
-        "_Z3QKkl1WyM"  // Black Panther: Wakanda Forever
-      ];
-      $("trRom").src = ytSrc(romTrailers[w % romTrailers.length]);
-      $("trAct").src = ytSrc(actTrailers[w % actTrailers.length]);
-      $("trDra").src = ytSrc(draTrailers[w % draTrailers.length]);
-    })();
+    function getSafeEmbedUrl(rawUrl) {
+      // Extracts the 11-character ID from any valid YouTube format
+      const match = rawUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
+      const id = match ? match[1] : null;
+      
+      // Returns the strict, iframe-safe embed format
+      return id ? `https://www.youtube-nocookie.com/embed/${id}?rel=0` : null;
+    }
+
+    async function fetchAndSetAIVideo(searchQuery, iframeId) {
+      try {
+        const prompt = `Search the web for a highly popular YouTube video matching: "${searchQuery}". Return ONLY a JSON object with a single key "url" containing the valid YouTube link.`;
+        
+        const out = await openai([{ role: "user", content: prompt }], { 
+          model: S.settings.newsModel, 
+          json: true 
+        });
+        
+        const data = JSON.parse(out);
+        const safeSrc = getSafeEmbedUrl(data.url);
+        
+        if (safeSrc) {
+          $(iframeId).src = safeSrc;
+          return true;
+        } else {
+          console.warn(`AI returned an unparseable URL for "${searchQuery}":`, data.url);
+          return false;
+        }
+      } catch (err) {
+        console.error(`Failed to fetch AI video for "${searchQuery}":`, err.message);
+        return false;
+      }
+    }
+
+    $("btnAIFun").addEventListener("click", async () => {
+      const btn = $("btnAIFun"); btn.disabled = true;
+      $("funStatus").innerHTML = '<span class="spin"></span> Searching…';
+      const ok = await fetchAndSetAIVideo("clean stand up comedy short clip", "funnyFrame");
+      $("funStatus").textContent = ok ? "Updated ✓" : "Failed ✗";
+      btn.disabled = false;
+    });
+
+    $("btnAITrailers").addEventListener("click", async () => {
+      const btn = $("btnAITrailers"); btn.disabled = true;
+      $("trailerStatus").innerHTML = '<span class="spin"></span> Searching…';
+      
+      // Fetch trailers in parallel
+      await Promise.all([
+        fetchAndSetAIVideo("latest romantic comedy movie trailer official", "trRom"),
+        fetchAndSetAIVideo("latest action movie trailer official", "trAct"),
+        fetchAndSetAIVideo("latest drama movie trailer official", "trDra")
+      ]);
+      
+      $("trailerStatus").textContent = "Updated ✓";
+      btn.disabled = false;
+    });
 
     /* ---------------- tasks ---------------- */
     function startTasks() {
